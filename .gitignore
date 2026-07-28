@@ -1,0 +1,22 @@
+# Secrets. Client ID and redirect URI live here; never committed. See docs/SETUP.md.
+Config.local.xcconfig
+
+# Captured API fixtures may contain track/user data; the capture script writes
+# redacted copies into Tests/SpotifyKitTests/Fixtures, but keep raw dumps out.
+Scripts/.captures/
+
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# XcodeGen output (regenerate with `xcodegen generate`; see docs/SETUP.md)
+Apps/BioRhythm.xcodeproj/
+
+.DS_Store

@@ -19,8 +19,12 @@ A standalone watchOS app that steers Spotify playback by heart rate, choosing wh
 ```bash
 swift build
 swift test                          # HRDJCore + SpotifyKit, no device needed
+cd Apps && xcodegen generate        # .xcodeproj is generated, not committed
 xcodebuild -scheme WatchApp -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)' build
 ```
+
+First-time setup (Spotify app registration, `Config.local.xcconfig`, onboarding):
+`docs/SETUP.md`.
 
 `HRDJCore` tests must pass without a simulator, a network, or credentials. Keep it that way.
 
@@ -33,4 +37,19 @@ xcodebuild -scheme WatchApp -destination 'platform=watchOS Simulator,name=Apple 
 
 ## Current state
 
-Milestone: **M0 not started.** See `SPEC.md` §13. Verification checklist §12 is unanswered; results belong in `docs/verification.md` as they come in.
+Milestone: **M0 written, not yet verified.** SwiftPM packages, `SpotifyKit` auth
+and player/playlist endpoints, iOS companion PKCE flow, token transfer to the
+watch Keychain, and a watch screen showing the current track all exist. None of
+it has been compiled or run — it was authored in an environment with no Swift
+toolchain and no credentials. Expect to fix build errors on first `swift build`.
+
+M0 is complete when the exit criterion in §13 is met on device: the watch reads
+playback state with the phone off (`docs/SETUP.md` step 6).
+
+Verification checklist §12 is unanswered — all six still open. `docs/verification.md`
+records that, plus three design questions M0 surfaced; **D-1 (where the playback
+protocols live) has to be settled before M2 starts.**
+
+Not started: `HRWindow`, `ZoneModel`, `TrackClock`, `CommitScheduler`,
+`PoolManager`, `Controller`, HealthKit, telemetry writing. `Decision` (§11.3)
+exists as a type so the log format is fixed before it starts carrying data.

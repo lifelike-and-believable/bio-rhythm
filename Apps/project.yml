@@ -1,0 +1,93 @@
+# XcodeGen project definition.
+#
+# The .xcodeproj is generated rather than committed: a pbxproj is unreadable in
+# review and merges badly, and this file is the actual source of truth for what
+# the two app targets contain.
+#
+#   brew install xcodegen
+#   cd Apps && xcodegen generate
+#
+# See docs/SETUP.md. If you would rather build the project by hand in Xcode,
+# that works too — this file then just documents what the targets need.
+
+name: BioRhythm
+options:
+  bundleIdPrefix: com.biorhythm
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+configs:
+  Debug: debug
+  Release: release
+
+# Both targets read SPOTIFY_CLIENT_ID and SPOTIFY_REDIRECT_URI from here.
+# Config.local.xcconfig is gitignored; copy Config.example.xcconfig to create it.
+configFiles:
+  Debug: ../Config.local.xcconfig
+  Release: ../Config.local.xcconfig
+
+packages:
+  BioRhythmCore:
+    path: ..
+
+targets:
+  iOSCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - path: iOSCompanion
+      - path: Shared
+    dependencies:
+      - package: BioRhythmCore
+        product: SpotifyKit
+      - package: BioRhythmCore
+        product: HRDJCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.biorhythm.companion
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    info:
+      path: iOSCompanion/Info.generated.plist
+      properties:
+        CFBundleDisplayName: bio-rhythm
+        SPOTIFY_CLIENT_ID: $(SPOTIFY_CLIENT_ID)
+        SPOTIFY_REDIRECT_URI: $(SPOTIFY_REDIRECT_URI)
+        # The scheme here must match SPOTIFY_REDIRECT_URI and the redirect URI
+        # registered in the Spotify dashboard, or the callback never arrives.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.biorhythm.companion.callback
+            CFBundleURLSchemes: [biorhythm]
+
+  WatchApp:
+    type: application
+    platform: watchOS
+    sources:
+      - path: WatchApp
+      - path: Shared
+    dependencies:
+      - package: BioRhythmCore
+        product: SpotifyKit
+      - package: BioRhythmCore
+        product: HRDJCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.biorhythm.companion.watchkitapp
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        # M1 adds HealthKit. The capability and usage strings land with the
+        # workout session, not before — asking for HR access on a screen that
+        # only shows a track title would be gratuitous.
+    info:
+      path: WatchApp/Info.generated.plist
+      properties:
+        CFBundleDisplayName: bio-rhythm
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: com.biorhythm.companion
+        SPOTIFY_CLIENT_ID: $(SPOTIFY_CLIENT_ID)
+        SPOTIFY_REDIRECT_URI: $(SPOTIFY_REDIRECT_URI)
