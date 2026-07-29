@@ -1,12 +1,11 @@
 import SwiftUI
 import SpotifyKit
 
-/// M0's exit criterion made visible: the watch reads playback state on its own,
-/// with the phone off (SPEC.md §13).
+/// The now-playing half of the §11.2 screen: title and artist, truncated.
 ///
-/// Deliberately not the §11.2 workout screen. There is no HR, no zone, and no
-/// control loop yet — showing a zone indicator now would imply a system that
-/// does not exist. M1 replaces this.
+/// Read-only, and deliberately so. Nothing here can pause, skip, or seek —
+/// the manual transport controls of §11.2 arrive with the override work in M4,
+/// and until then the watch cannot interrupt a track even by accident.
 @MainActor
 @Observable
 final class NowPlayingModel {
@@ -83,7 +82,7 @@ final class NowPlayingModel {
     }
 }
 
-struct NowPlayingView: View {
+struct NowPlayingSection: View {
     @ObservedObject private var link: PhoneLink
     @State private var model: NowPlayingModel
 
@@ -93,17 +92,14 @@ struct NowPlayingView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                if link.hasToken {
-                    content
-                } else {
-                    waitingForOnboarding
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            if link.hasToken {
+                content
+            } else {
+                waitingForOnboarding
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .navigationTitle("bio-rhythm")
+        .frame(maxWidth: .infinity, alignment: .leading)
         .task {
             guard link.hasToken else { return }
             await model.refresh()
@@ -114,7 +110,9 @@ struct NowPlayingView: View {
     private var content: some View {
         switch model.state {
         case .idle, .loading:
-            ProgressView()
+            Text("Reading playback…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .playing(let title, let artist):
             Text(title)
                 .font(.headline)

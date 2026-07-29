@@ -18,5 +18,7 @@ DerivedData/
 
 # XcodeGen output (regenerate with `xcodegen generate`; see docs/SETUP.md)
 Apps/BioRhythm.xcodeproj/
+*.generated.plist
+*.generated.entitlements
 
 .DS_Store

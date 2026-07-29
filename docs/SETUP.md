@@ -1,21 +1,30 @@
 # Setup
 
-One-time setup for the owner's machine, phone, and watch. Everything here is
-M0 (SPEC.md §13): packages, auth, and the watch reading playback state on its
-own.
+One-time setup for the owner's machine, phone, and watch, then the two checks
+that close M0: the §13 exit criterion on device, and the fixture capture that
+answers **V-1**.
 
-## 1. Spotify app registration
+Everything here is done once. Nothing in it is needed during a workout.
 
-1. Sign in at <https://developer.spotify.com/dashboard> with the account that
-   holds **Premium**. As of Feb 2026 a Development Mode app requires the *app
-   owner* to hold active Premium, not just the listening user (§4.1). If the
-   subscription lapses the app stops working and resumes on resubscribe.
-2. Create an app. Development Mode allows one client ID per developer and five
-   users per app — adequate here, and nothing in the design assumes more.
-3. Add a redirect URI. `biorhythm://callback` matches the committed example.
-4. Add your own Spotify account under the app's users.
+---
 
-Do not request Extended Quota Mode. It now requires large MAU and is not a
+## 1. Register the Spotify app
+
+1. Sign in at <https://developer.spotify.com/dashboard> **with the account that
+   holds Premium**. As of Feb 2026 a Development Mode app requires the *app
+   owner* to hold active Premium, not just the listening user (§4.1). If you
+   have more than one account, this must be the Premium one.
+2. Create an app. The name and description do not matter.
+3. Add redirect URI **`biorhythm://callback`** — exactly that, no trailing
+   slash. It has to match `SPOTIFY_REDIRECT_URI` character for character or the
+   callback silently never returns.
+4. Add a second redirect URI **`http://127.0.0.1:8888/callback`**. The app does
+   not use it; it makes getting a token for step 5 much easier.
+5. Under the app's user management, add your own Spotify account. Development
+   Mode allows 5 users and you need 1.
+6. Copy the Client ID.
+
+Do not request Extended Quota Mode. It requires large MAU now and is not a
 fallback (§4.1).
 
 ## 2. Local configuration
@@ -24,8 +33,11 @@ fallback (§4.1).
 cp Config.example.xcconfig Config.local.xcconfig
 ```
 
-Fill in `SPOTIFY_CLIENT_ID`. `Config.local.xcconfig` is gitignored and must
-stay that way.
+Replace `your_client_id_here` with the Client ID. Leave `SPOTIFY_REDIRECT_URI`
+alone — the `$(SLASH)` indirection is a workaround for `//` starting a comment
+in xcconfig, not a typo.
+
+`Config.local.xcconfig` is gitignored. `git status` should show nothing.
 
 ## 3. Build the libraries
 
@@ -36,7 +48,7 @@ swift test
 
 `HRDJCore` and `SpotifyKit` tests run with no simulator, no network, and no
 credentials. Keep it that way — it is the reason the control law is testable at
-all.
+all. CI runs exactly this on every push.
 
 ## 4. Generate the Xcode project
 
@@ -46,51 +58,140 @@ cd Apps && xcodegen generate
 open BioRhythm.xcodeproj
 ```
 
-The `.xcodeproj` is generated and gitignored; `Apps/project.yml` is the source
-of truth. Building the project by hand in Xcode instead is fine — `project.yml`
-then serves as the checklist of what each target needs.
+The `.xcodeproj`, the generated Info.plists, and the generated entitlements are
+all gitignored; `Apps/project.yml` is the source of truth. Building the project
+by hand in Xcode works too — `project.yml` then serves as the checklist of what
+each target needs.
 
-## 5. Run onboarding
+Set your signing team on both targets. **On a free Apple ID the provisioning
+lasts 7 days** and the app stops launching afterwards. That is normal for a
+sideloaded build and not a bug in this code. A paid account gives a year.
 
-1. Build and run **iOSCompanion** on the phone. Tap *Connect Spotify*, sign in,
-   approve the four scopes (§9.2).
-2. The companion sends the refresh token to the watch with
-   `transferUserInfo`, which is queued and retried by the system. The watch app
-   must be installed first, or the transfer is refused with a message saying so.
-3. Build and run **WatchApp**. It should pick up the token and show the
-   currently playing track.
+## 5. Onboarding — the order matters
 
-## 6. Confirm the M0 exit criterion
+1. **Install the watch app first.** Run the `WatchApp` scheme to the physical
+   watch. This has to happen before step 3: `WatchLink.send` checks
+   `isWatchAppInstalled` and refuses with *"Install the bio-rhythm watch app
+   from the Watch app first"* otherwise. That message is the code working, not
+   failing.
+2. Run `iOSCompanion` to the phone.
+3. Tap **Connect Spotify**, sign in, approve the four scopes (§9.2).
+4. The companion hands the refresh token over with `transferUserInfo`, which the
+   system queues and retries. It can take a moment and does not need the watch
+   app in the foreground. The phone shows a pending count while it is
+   outstanding.
+5. Open the watch app. It should leave "Waiting for the phone" and show a track,
+   or "Nothing playing" if nothing is.
 
-Play something on any device, then **power the phone off** and open the watch
-app. It should still show the track, refreshing its own access token against
-the Spotify accounts service over Wi-Fi or LTE.
+## 6. The M0 exit criterion
 
-That is M0 complete: the phone is needed once, for onboarding, and never again
-(G3).
+Play something on any device. **Power the phone fully off** — not locked, not
+Bluetooth off — and open the watch app. It should still show the track, having
+refreshed its own access token against the Spotify accounts service.
 
-## 7. Capture API fixtures
+That is §13's exit criterion: the phone is needed once, for onboarding, and
+never again (G3).
+
+> **Check this first if the test cannot pass.** A GPS-only Apple Watch reaches
+> the network over Wi-Fi only. With the phone off it needs a Wi-Fi network it
+> already knows. If it cannot get online at all, that is the network, not the
+> app.
+
+Record the result in `docs/verification.md` against **V-5**, with the date and
+whether it was LTE or Wi-Fi.
+
+---
+
+## 7. Capture API fixtures — and answer V-1
+
+This is the second gating item. **V-1 blocks all of §8**: if Prompted Playlists
+do not return an `items` object, pool management has to become manually
+duplicated ordinary playlists, and it is much cheaper to know that before
+`PoolManager` is written than after.
+
+It doubles as the only check on whether the post-Feb-2026 DTO field names in
+`Sources/SpotifyKit/DTOs/` are right. They were written from §4.3's description,
+not from an observed response.
+
+### 7a. Get a user token
+
+Easiest: the "Try it" console on the Web API reference pages at
+developer.spotify.com. Pick an endpoint such as *Get Playback State* and it
+mints a token for your account; select all four scopes from §9.2.
+
+That area of the site has been reorganised more than once, so if the console is
+gone, the fallback is a temporary `print` of the access token in
+`NowPlayingModel.refresh()`, read from the Xcode console.
+
+Tokens last about an hour. Capture in one sitting.
+
+### 7b. Find a Prompted Playlist ID
+
+In the Spotify mobile app: open the Prompted Playlist → share → copy link. The
+ID is the segment after `/playlist/` and before the `?`:
+
+```
+https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
+                                  └──────── this ───────┘
+```
+
+Use a real Prompted Playlist, not an ordinary one. Whether *that specific kind*
+is readable is the entire question.
+
+### 7c. Run it
 
 ```bash
+brew install jq                 # the script needs it for redaction
 export SPOTIFY_TOKEN='BQ...'
 export POOL_PLAYLIST_ID='37i9...'
 Scripts/capture-fixtures.sh
 ```
 
-This populates `Tests/SpotifyKitTests/Fixtures` and answers **V-1**, which
-blocks all of §8. Record the answer in `docs/verification.md`.
+Start playback somewhere first, or `/me/player` returns 204 and
+`player-state.json` captures nothing worth having.
 
-The easiest way to get `SPOTIFY_TOKEN` is to add a temporary print of the
-access token in the watch app, or to run the authorization flow by hand from
-the developer dashboard's console.
+### 7d. Read the result
+
+| What you see on `/playlists/{id}/items` | What it means |
+|---|---|
+| 200, `items[].item` populated | **V-1 passes.** §8 can be built as specified. |
+| 200, but entries carry `track` rather than `item` | The rename did not land the way §4.3 describes. The DTOs are wrong — send the file. |
+| 200, but `items` is null | The playlist is not returning contents to this user. §8 needs the duplication fallback. |
+| 404 | Playlist not visible to this user, or the path is not `/items`. V-1 fails. |
+| 403 | Premium lapsed, a scope is missing, or it is a withdrawn endpoint (§4.4). |
+
+### 7e. Before committing the fixtures
+
+**Read every file in `Tests/SpotifyKitTests/Fixtures/`.** The script strips
+images, external URLs, owner blocks, and the playlist ID, but it deliberately
+leaves track and artist names — those are the data under test. This repository
+is public, so that is a real decision. If you would rather it did not include
+your playlist contents, say so and the redaction can be widened.
+
+Then:
+
+```bash
+swift test
+```
+
+The five `FixtureDecodingTests` should flip from *known issue* to passing. **If
+they fail instead, that is the valuable outcome, not a problem** — it means the
+field names were wrong and now we know exactly how.
+
+Record the answer in `docs/verification.md` against **V-1**, with the date.
+
+---
 
 ## Troubleshooting
 
 | Symptom | Cause |
 |---|---|
-| "SPOTIFY_CLIENT_ID is missing from Info.plist" | `Config.local.xcconfig` not created, or Xcode project generated before it existed. Regenerate. |
-| Authorization sheet opens and immediately closes | Redirect URI in the dashboard does not match `SPOTIFY_REDIRECT_URI` exactly, including scheme and trailing path. |
-| Callback never returns | The URL scheme is not registered on the companion target. Check `CFBundleURLSchemes` in `project.yml`. |
+| "SPOTIFY_CLIENT_ID is missing from Info.plist" | `Config.local.xcconfig` not created, or the Xcode project was generated before it existed. Recreate it, then `xcodegen generate` again. |
+| Authorization sheet opens and immediately closes | The redirect URI in the dashboard does not match `SPOTIFY_REDIRECT_URI` exactly, including scheme and path. |
+| Callback never returns | The URL scheme is not registered on the companion target. Check `CFBundleURLSchemes` in `Apps/project.yml`. |
 | "Install the bio-rhythm watch app first" | `transferUserInfo` has nowhere to go. Install the watch app, then retry. |
-| Watch shows "Not connected" after onboarding | The transfer is queued and can take a moment; open the watch app in the foreground. If it persists, check `WCSession` activation errors on the phone. |
+| Watch still shows "Not connected" after onboarding | The transfer is queued; open the watch app in the foreground. If it persists, check `WCSession` activation errors on the phone. |
 | 403 on every request | Premium lapsed, or a scope is missing (§11.4). |
+| App stops launching after a week | Free-account provisioning expired. Rebuild from Xcode. |
+| "Another app is already recording a workout" | §10's single-session constraint. End the session in the Workout app, Strava, or whatever started it. Not a retry situation. |
+| Zone indicator flickers between two zones | Expected in M1. The screen shows the raw §6.1 mapping; hysteresis, dwell, and the step limit arrive with `ZoneModel` in M2. |
