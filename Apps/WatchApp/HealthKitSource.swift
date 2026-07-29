@@ -1,6 +1,18 @@
 import Foundation
 import HealthKit
 
+/// The HealthKit types this file needs, outside any actor.
+///
+/// Computed rather than stored, and in their own namespace rather than as
+/// statics on `HealthKitSource`. The class is `@MainActor`, which its static
+/// members inherit — and the sample callback is `nonisolated`, because that is
+/// where HealthKit delivers. A stored static would be unreachable from exactly
+/// the place it is needed. Constructing them per call is cheap.
+private enum HealthKitTypes {
+    static var heartRate: HKQuantityType { HKQuantityType(.heartRate) }
+    static var bpm: HKUnit { HKUnit.count().unitDivided(by: .minute()) }
+}
+
 /// Live heart rate from an `HKWorkoutSession`. SPEC.md §10.
 ///
 /// The workout session exists to obtain live HR **and** extended background
@@ -49,8 +61,6 @@ final class HealthKitSource: NSObject {
     /// session suspends commits (§10).
     var onStateChange: (@MainActor (HKWorkoutSessionState) -> Void)?
 
-    private static let heartRateType = HKQuantityType(.heartRate)
-    private static let bpmUnit = HKUnit.count().unitDivided(by: .minute())
 
     func requestAuthorization(saveWorkout: Bool) async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
@@ -60,7 +70,7 @@ final class HealthKitSource: NSObject {
         // access the product does not use is a permission prompt that buys
         // nothing and costs trust.
         let share: Set<HKSampleType> = saveWorkout ? [HKWorkoutType.workoutType()] : []
-        let read: Set<HKObjectType> = [Self.heartRateType]
+        let read: Set<HKObjectType> = [HealthKitTypes.heartRate]
 
         try await store.requestAuthorization(toShare: share, read: read)
     }
@@ -160,15 +170,16 @@ extension HealthKitSource: HKLiveWorkoutBuilderDelegate {
         _ workoutBuilder: HKLiveWorkoutBuilder,
         didCollectDataOf collectedTypes: Set<HKSampleType>
     ) {
-        guard collectedTypes.contains(Self.heartRateType) else { return }
+        let heartRateType = HealthKitTypes.heartRate
+        guard collectedTypes.contains(heartRateType) else { return }
 
         // §10: read the most recent quantity from the running statistics and
         // convert to count/min.
-        guard let statistics = workoutBuilder.statistics(for: Self.heartRateType),
+        guard let statistics = workoutBuilder.statistics(for: heartRateType),
               let quantity = statistics.mostRecentQuantity()
         else { return }
 
-        let bpm = Int(quantity.doubleValue(for: Self.bpmUnit).rounded())
+        let bpm = Int(quantity.doubleValue(for: HealthKitTypes.bpm).rounded())
         let date = statistics.mostRecentQuantityDateInterval()?.end ?? Date()
 
         Task { @MainActor in
