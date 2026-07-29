@@ -80,9 +80,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.biorhythm.companion.watchkitapp
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
-        # M1 adds HealthKit. The capability and usage strings land with the
-        # workout session, not before — asking for HR access on a screen that
-        # only shows a track title would be gratuitous.
+    # HealthKit arrives with M1's workout session. Read access only: §10 shares
+    # HKWorkoutType only when R-14 is enabled, and asking for write access the
+    # product does not use is a permission prompt that buys nothing.
+    entitlements:
+      path: WatchApp/WatchApp.generated.entitlements
+      properties:
+        com.apple.developer.healthkit: true
     info:
       path: WatchApp/Info.generated.plist
       properties:
@@ -91,6 +95,9 @@ targets:
         WKCompanionAppBundleIdentifier: com.biorhythm.companion
         SPOTIFY_CLIENT_ID: $(SPOTIFY_CLIENT_ID)
         SPOTIFY_REDIRECT_URI: $(SPOTIFY_REDIRECT_URI)
+        NSHealthShareUsageDescription: >-
+          bio-rhythm reads your heart rate during a workout to choose which
+          track plays next.
 
 # Declared explicitly rather than relying on XcodeGen's default scheme
 # generation, because CI builds by scheme name and CLAUDE.md documents

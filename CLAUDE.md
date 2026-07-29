@@ -37,19 +37,26 @@ First-time setup (Spotify app registration, `Config.local.xcconfig`, onboarding)
 
 ## Current state
 
-Milestone: **M0 written, not yet verified.** SwiftPM packages, `SpotifyKit` auth
-and player/playlist endpoints, iOS companion PKCE flow, token transfer to the
-watch Keychain, and a watch screen showing the current track all exist. None of
-it has been compiled or run — it was authored in an environment with no Swift
-toolchain and no credentials. Expect to fix build errors on first `swift build`.
+Milestone: **M1 written; M0 and M1 both unverified on device.**
 
-M0 is complete when the exit criterion in §13 is met on device: the watch reads
-playback state with the phone off (`docs/SETUP.md` step 6).
+Everything compiles and the library tests pass — CI builds both SwiftPM targets
+and both app targets on every PR (`.github/workflows/ci.yml`, Xcode pinned).
+Nothing has run on a watch.
+
+- **M0** (auth, token transfer, playback read) is complete when §13's exit
+  criterion is met on device: the watch reads playback state with the phone off
+  (`docs/SETUP.md`).
+- **M1** adds `HRWindow` (§6.2), `ZoneBoundaries` (§6.1), `ControlConfiguration`
+  (§6.7), the `HKWorkoutSession` lifecycle, and JSONL telemetry writing. The
+  `HRDJCore` half is tested against a fake clock; the HealthKit half can only be
+  proven on a wrist. Exit: a 30-minute session holds background runtime and logs
+  continuous HR.
 
 Verification checklist §12 is unanswered — all six still open. `docs/verification.md`
 records that, plus three design questions M0 surfaced; **D-1 (where the playback
 protocols live) has to be settled before M2 starts.**
 
-Not started: `HRWindow`, `ZoneModel`, `TrackClock`, `CommitScheduler`,
-`PoolManager`, `Controller`, HealthKit, telemetry writing. `Decision` (§11.3)
-exists as a type so the log format is fixed before it starts carrying data.
+Not started: `ZoneModel` hysteresis/dwell/step-limit, `TrackClock`,
+`CommitScheduler`, `PoolManager`, `Controller`. The zone shown on screen in M1
+is the raw §6.1 mapping and will flicker on a threshold — that is what §6.3
+exists to fix, in M2.
