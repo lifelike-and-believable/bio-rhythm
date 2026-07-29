@@ -73,6 +73,8 @@ public enum PoolID: String, CaseIterable, Hashable, Sendable, Codable {
     case z3 = "Z3"
     case z4 = "Z4"
 
+    /// Pool IDs are a deliberate 1:1 mirror of zones (§8). Keep this mapping
+    /// explicit so adding a future zone cannot silently reshuffle playlists.
     public var zone: Zone {
         switch self {
         case .z1: .z1
@@ -84,6 +86,8 @@ public enum PoolID: String, CaseIterable, Hashable, Sendable, Codable {
 }
 
 extension Zone {
+    /// Pool IDs are a deliberate 1:1 mirror of zones (§8). Keep this mapping
+    /// explicit so adding a future zone cannot silently reshuffle playlists.
     public var poolID: PoolID {
         switch self {
         case .z1: .z1
@@ -105,23 +109,38 @@ extension Zone {
 /// carrying data worth comparing across sessions.
 public struct Decision: Hashable, Sendable, Codable {
     public enum Event: String, Hashable, Sendable, Codable {
+        /// A commit attempt was made for the next track.
         case commit
+        /// The commit window closed without a successful enqueue.
         case commitMiss = "commit_miss"
+        /// The selected zone changed.
         case zoneChange = "zone_change"
+        /// No fresh HR sample was available at decision time.
         case hrSampleGap = "hr_sample_gap"
+        /// Automatic control was suspended after manual input.
         case overrideSet = "override_set"
+        /// Automatic control resumed before the override hold expired.
         case overrideCleared = "override_cleared"
+        /// Network failures suspended commits.
         case degradedEnter = "degraded_enter"
+        /// Playback reads recovered and commits may resume.
         case degradedExit = "degraded_exit"
+        /// The target pool had no eligible candidate.
         case poolStarvation = "pool_starvation"
+        /// A track change was detected before the estimated boundary.
         case manualSkip = "manual_skip"
+        /// A workout-control session started.
         case sessionStart = "session_start"
+        /// A workout-control session ended.
         case sessionEnd = "session_end"
     }
 
     public enum Outcome: String, Hashable, Sendable, Codable {
+        /// The attempted action completed.
         case success
+        /// The attempted action failed and may be retried or logged as a miss.
         case failure
+        /// The action was deliberately not attempted under current conditions.
         case skipped
     }
 

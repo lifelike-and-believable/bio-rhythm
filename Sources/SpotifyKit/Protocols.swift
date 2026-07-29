@@ -8,6 +8,7 @@
 /// That is CLAUDE.md non-negotiable #1 and it is the whole mechanism.
 
 public struct TrackURI: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
+    /// Full `spotify:track:...` URI, not just the opaque track ID.
     public let rawValue: String
     public init(rawValue: String) { self.rawValue = rawValue }
     public init(_ rawValue: String) { self.rawValue = rawValue }
@@ -15,6 +16,7 @@ public struct TrackURI: Hashable, Sendable, RawRepresentable, CustomStringConver
 }
 
 public struct ContextURI: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
+    /// Full playable context URI, usually `spotify:playlist:...` in this app.
     public let rawValue: String
     public init(rawValue: String) { self.rawValue = rawValue }
     public init(_ rawValue: String) { self.rawValue = rawValue }
@@ -25,6 +27,7 @@ public struct ContextURI: Hashable, Sendable, RawRepresentable, CustomStringConv
 }
 
 public struct DeviceID: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
+    /// Spotify Connect device ID from `GET /v1/me/player/devices`.
     public let rawValue: String
     public init(rawValue: String) { self.rawValue = rawValue }
     public init(_ rawValue: String) { self.rawValue = rawValue }

@@ -1,8 +1,8 @@
 # Setup
 
 One-time setup for the owner's machine, phone, and watch, then the two checks
-that close M0: the §13 exit criterion on device, and the fixture capture that
-answers **V-1**.
+that close M0: the M0 exit criterion (SPEC.md §13: watch reads playback with
+the phone off), and the fixture capture that answers **V-1**.
 
 Everything here is done once. Nothing in it is needed during a workout.
 
@@ -49,6 +49,9 @@ swift test
 `HRDJCore` and `SpotifyKit` tests run with no simulator, no network, and no
 credentials. Keep it that way — it is the reason the control law is testable at
 all. CI runs exactly this on every push.
+
+These commands exercise only the SwiftPM library targets. The watch and phone
+apps are generated and built through the Xcode project in the next step.
 
 ## 4. Generate the Xcode project
 
@@ -98,16 +101,17 @@ never again (G3).
 > app.
 
 Record the result in `docs/verification.md` against **V-5**, with the date and
-whether it was LTE or Wi-Fi.
+whether it was LTE or Wi-Fi. That entry is the evidence for the M0 exit
+criterion.
 
 ---
 
 ## 7. Capture API fixtures — and answer V-1
 
-This is the second gating item. **V-1 blocks all of §8**: if Prompted Playlists
-do not return an `items` object, pool management has to become manually
-duplicated ordinary playlists, and it is much cheaper to know that before
-`PoolManager` is written than after.
+This is the second gating item. **V-1 blocks SPEC.md §8 (Pool management) in
+M2**: if Prompted Playlists do not return an `items` object, pool management has
+to become manually duplicated ordinary playlists, and it is much cheaper to know
+that before `PoolManager` is written than after.
 
 It doubles as the only check on whether the post-Feb-2026 DTO field names in
 `Sources/SpotifyKit/DTOs/` are right. They were written from §4.3's description,
@@ -194,4 +198,4 @@ Record the answer in `docs/verification.md` against **V-1**, with the date.
 | 403 on every request | Premium lapsed, or a scope is missing (§11.4). |
 | App stops launching after a week | Free-account provisioning expired. Rebuild from Xcode. |
 | "Another app is already recording a workout" | §10's single-session constraint. End the session in the Workout app, Strava, or whatever started it. Not a retry situation. |
-| Zone indicator flickers between two zones | Expected in M1. The screen shows the raw §6.1 mapping; hysteresis, dwell, and the step limit arrive with `ZoneModel` in M2. |
+| Zone indicator flickers between two zones | Normal in M1. The screen shows the raw §6.1 mapping without hysteresis; dwell, hysteresis, and the step limit arrive with `ZoneModel` in M2. |

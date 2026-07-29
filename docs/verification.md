@@ -9,6 +9,11 @@ answered while building M0. §12 says to run the checklist before building on
 top of the affected areas; the M0 code deliberately stops short of every one of
 those areas.
 
+The **V-items** below are platform/API behaviours to verify on real devices and
+real Spotify data. The **D-items** later in this file are design questions raised
+by implementation; D-1 blocks M2 because the control loop cannot be placed until
+the playback protocol ownership is settled.
+
 | ID | Question | Blocks | Status | Date | Answer |
 |---|---|---|---|---|---|
 | V-1 | Are Prompted Playlist items readable via `GET /v1/playlists/{id}/items`? | §8 entirely | **Open** | — | Run `Scripts/capture-fixtures.sh` against a real Prompted Playlist. A populated `items.items[].item` is a pass. If it fails, pools must be manually duplicated into ordinary playlists. |

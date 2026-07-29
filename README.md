@@ -28,9 +28,15 @@ Apps/iOSCompanion    Onboarding only: the OAuth leg watchOS cannot perform.
 
 ## Status
 
-**M0, written but unverified.** Auth and playback reading exist and are unit
-tested; nothing has run on a device yet. `swift test` covers `HRDJCore` and
-`SpotifyKit` with no simulator, network, or credentials.
+**M1 written; M0 and M1 both unverified on device.** Auth, token transfer,
+playback reading, workout-session lifecycle, HR observation, raw zone display,
+and JSONL telemetry exist and are unit tested where possible. Nothing has run on
+a watch yet.
+
+`swift test` covers `HRDJCore` and `SpotifyKit` with no simulator, network, or
+credentials. M0 exits when the watch reads playback state with the phone off.
+M1 exits after a 30-minute on-wrist session holds background runtime and logs
+continuous HR.
 
 There is no control loop yet. M2 is observe-only on purpose — the constants in
 §6.7 get tuned against logs from real workouts before the loop is allowed to
