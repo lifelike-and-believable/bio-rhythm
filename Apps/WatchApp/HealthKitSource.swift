@@ -129,12 +129,14 @@ final class HealthKitSource: NSObject {
     /// framework string.
     private static func classify(_ error: any Error) -> SourceError {
         let description = error.localizedDescription
-        let code = (error as NSError).code
-        // `HKErrorAnotherWorkoutSessionStarted`. Matched by code where possible
-        // and by text as a fallback, because the code is the reliable half and
-        // the text is the readable one.
-        if code == HKError.errorAnotherWorkoutSessionStarted.rawValue
-            || description.localizedCaseInsensitiveContains("another workout session") {
+
+        // Cast to HKError rather than comparing a bare NSError code: the code
+        // alone says nothing about which domain it came from, so an unrelated
+        // error that happens to share the number would be reported to the owner
+        // as a workout conflict and send them looking for an app that is not
+        // running.
+        if let healthKitError = error as? HKError,
+           healthKitError.code == .errorAnotherWorkoutSessionStarted {
             return .sessionHeldByAnotherApp(underlying: description)
         }
         return .sessionFailed(description)
