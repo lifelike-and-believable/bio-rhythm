@@ -49,9 +49,22 @@ struct PlayerAPITests {
 
         // R-2: the only actuator. If a commit ever issues a transport call,
         // this is where it would show up first.
+        //
+        // Full endpoint paths, not bare verbs: "/play" is a substring of
+        // "/v1/me/player/queue" via "player", so the loose form failed on a
+        // request that was entirely correct.
         let paths = requests.map(\.url)
-        for forbidden in ["/pause", "/next", "/previous", "/seek", "/volume", "/play"] {
-            #expect(paths.contains { $0.contains(forbidden) } == false)
+        let transportEndpoints = [
+            "/v1/me/player/pause",
+            "/v1/me/player/next",
+            "/v1/me/player/previous",
+            "/v1/me/player/seek",
+            "/v1/me/player/volume",
+            "/v1/me/player/play",
+            "/v1/me/player/shuffle",
+        ]
+        for endpoint in transportEndpoints {
+            #expect(paths.contains { $0.contains(endpoint) } == false)
         }
     }
 
