@@ -17,6 +17,10 @@ actor TelemetryLog {
 
     private let fileURL: URL
     private var handle: FileHandle?
+    /// Instance rather than static: `JSONEncoder` is a non-Sendable class, so a
+    /// shared static one is a data race the compiler rejects outright. Held by
+    /// the actor, it is isolated for free.
+    private let encoder: JSONEncoder
 
     /// Where session logs live. Inside the app container, so the system reclaims
     /// them with the app and nothing needs a privacy prompt.
@@ -33,7 +37,18 @@ actor TelemetryLog {
     }
 
     init(directory: URL, startedAt: Date = Date()) throws {
-        let stamp = Self.fileStampFormatter.string(from: startedAt)
+        let encoder = JSONEncoder()
+        // §11.3's example stamps are "2026-07-28T14:03:11.482Z" — millisecond
+        // precision matters when reconstructing a commit window afterwards.
+        encoder.dateEncodingStrategy = .iso8601WithFractionalSeconds
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        self.encoder = encoder
+
+        // Colons are legal in a filename but a nuisance in every shell that
+        // will later be pointed at these files.
+        let stamp = startedAt
+            .formatted(Date.ISO8601FormatStyle(timeZone: .gmt))
+            .replacingOccurrences(of: ":", with: "")
         self.fileURL = directory.appendingPathComponent("session-\(stamp).jsonl")
 
         try Self.rotate(in: directory)
@@ -48,7 +63,7 @@ actor TelemetryLog {
     func append(_ decision: Decision, at wallClock: Date = Date()) {
         guard let handle else { return }
         do {
-            let data = try Self.encoder.encode(Record(t: wallClock, decision: decision))
+            let data = try encoder.encode(Record(t: wallClock, decision: decision))
             handle.write(data)
             handle.write(Data("\n".utf8))
         } catch {
@@ -79,35 +94,6 @@ actor TelemetryLog {
             try container.encode(t, forKey: .t)
         }
     }
-
-    private static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        // §11.3's example uses "2026-07-28T14:03:11.482Z" — millisecond
-        // precision matters when reconstructing a commit window afterwards.
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            var container = encoder.singleValueContainer()
-            try container.encode(iso8601Formatter.string(from: date))
-        }
-        // One record per line, so the file stays greppable and a truncated
-        // write costs one decision rather than the session.
-        encoder.outputFormatting = [.withoutEscapingSlashes]
-        return encoder
-    }()
-
-    private static let iso8601Formatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        return formatter
-    }()
-
-    private static let fileStampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd-HHmmss"
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
 
     // MARK: - Rotation
 

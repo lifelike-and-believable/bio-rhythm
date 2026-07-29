@@ -154,9 +154,11 @@ extension HealthKitSource: HKWorkoutSessionDelegate {
 }
 
 extension HealthKitSource: HKLiveWorkoutBuilderDelegate {
+    // `didCollectDataOf`, not `didCollectDataFor`. Easy to get backwards and
+    // the compiler is the only thing that will tell you.
     nonisolated func workoutBuilder(
         _ workoutBuilder: HKLiveWorkoutBuilder,
-        didCollectDataFor collectedTypes: Set<HKSampleType>
+        didCollectDataOf collectedTypes: Set<HKSampleType>
     ) {
         guard collectedTypes.contains(Self.heartRateType) else { return }
 

@@ -59,7 +59,11 @@ struct HRWindowTests {
         var window = HRWindow()
         let now = Instant.reference
 
-        #expect(window.insert(HRSample(at: now, bpm: bpm)) == false)
+        // Hoisted out of #expect: the macro captures its operand immutably, so
+        // a mutating call inside it will not compile.
+        let accepted = window.insert(HRSample(at: now, bpm: bpm))
+
+        #expect(accepted == false)
         #expect(window.sampleCount(at: now) == 0)
         // Rejected samples must not count as freshness either, or a stuck
         // sensor emitting zeroes would look like a live one.
@@ -71,8 +75,11 @@ struct HRWindowTests {
         var window = HRWindow()
         let now = Instant.reference
 
-        #expect(window.insert(HRSample(at: now, bpm: 30)))
-        #expect(window.insert(HRSample(at: now, bpm: 240)))
+        let acceptedLow = window.insert(HRSample(at: now, bpm: 30))
+        let acceptedHigh = window.insert(HRSample(at: now, bpm: 240))
+
+        #expect(acceptedLow)
+        #expect(acceptedHigh)
         #expect(window.sampleCount(at: now) == 2)
     }
 
