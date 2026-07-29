@@ -91,3 +91,17 @@ targets:
         WKCompanionAppBundleIdentifier: com.biorhythm.companion
         SPOTIFY_CLIENT_ID: $(SPOTIFY_CLIENT_ID)
         SPOTIFY_REDIRECT_URI: $(SPOTIFY_REDIRECT_URI)
+
+# Declared explicitly rather than relying on XcodeGen's default scheme
+# generation, because CI builds by scheme name and CLAUDE.md documents
+# `xcodebuild -scheme WatchApp`. A scheme that only exists by default is a
+# scheme that can quietly stop existing.
+schemes:
+  WatchApp:
+    build:
+      targets:
+        WatchApp: all
+  iOSCompanion:
+    build:
+      targets:
+        iOSCompanion: all

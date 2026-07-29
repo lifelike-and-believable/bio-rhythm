@@ -30,6 +30,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # One pin for both jobs. Pinned so an image bump cannot silently change the
+  # Swift language mode underneath the project. The image currently carries
+  # 26.0 through 26.6; 26.5 is what this project has been compiled against.
+  # Bump deliberately, with a run to prove it, not by drifting.
+  XCODE_APP: /Applications/Xcode_26.5.app
+
 jobs:
   swiftpm:
     name: HRDJCore + SpotifyKit
@@ -39,13 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Pinned so an image bump cannot silently change the Swift language mode
-      # underneath the project. The image currently carries 26.0 through 26.6;
-      # 26.5 is what this project has actually been compiled against. Bump
-      # deliberately, with a run to prove it, not by drifting.
       - name: Select Xcode
-        env:
-          XCODE_APP: /Applications/Xcode_26.5.app
         run: |
           # A bare `xcode-select -s` on a missing path fails with a terse
           # error that reads like a broken workflow rather than an image bump.
@@ -73,3 +74,57 @@ jobs:
 
       - name: Test
         run: swift test --skip-build
+
+  apps:
+    name: WatchApp + iOSCompanion
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode
+        run: |
+          if [ ! -d "$XCODE_APP" ]; then
+            echo "::error::Pinned toolchain $XCODE_APP is not on this runner image."
+            echo "Installed Xcodes:"
+            ls -d /Applications/Xcode*.app 2>/dev/null || echo "  (none found)"
+            echo "Update the XCODE_APP pin in .github/workflows/ci.yml to one of the above."
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # Config.local.xcconfig is gitignored and holds the owner's client ID.
+      # Nothing reaches the network at build time, so the committed example —
+      # placeholder ID and all — compiles identically to the real thing. Using
+      # the example rather than a here-doc also means CI fails if the template
+      # itself stops being a valid xcconfig.
+      - name: Synthesise local configuration
+        run: cp Config.example.xcconfig Config.local.xcconfig
+
+      - name: Generate the Xcode project
+        run: cd Apps && xcodegen generate
+
+      # Simulator destinations, so no signing identity or provisioning profile
+      # is needed. `generic/platform=` rather than a named device: the runner
+      # image's simulator list is not something this workflow should depend on.
+      - name: Build WatchApp
+        run: |
+          xcodebuild build \
+            -project Apps/BioRhythm.xcodeproj \
+            -scheme WatchApp \
+            -destination 'generic/platform=watchOS Simulator' \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Build iOSCompanion
+        run: |
+          xcodebuild build \
+            -project Apps/BioRhythm.xcodeproj \
+            -scheme iOSCompanion \
+            -destination 'generic/platform=iOS Simulator' \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO
