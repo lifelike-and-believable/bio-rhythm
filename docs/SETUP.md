@@ -91,7 +91,8 @@ sideloaded build and not a bug in this code. A paid account gives a year.
 The app expects four owner-created Spotify playlists, one for each energy zone.
 Create them by hand in the Spotify mobile app with Prompted Playlists, then save
 each result to your library. Prompted Playlists are currently an in-app Premium
-beta (§4.5); do this on the mobile app unless Spotify documents desktop support.
+beta (SPEC.md §4.5); do this on the mobile app unless Spotify documents desktop
+support.
 Keep the playlist names explicit so they are easy to identify later:
 
 - `BioRhythm Z1 Recovery`
@@ -99,9 +100,9 @@ Keep the playlist names explicit so they are easy to identify later:
 - `BioRhythm Z3 Tempo`
 - `BioRhythm Z4 Hard`
 
-Prompted Playlists are a Spotify beta with no API (§4.5), so these prompts are
-only starting points. Regenerate or edit them in Spotify when the results feel
-wrong; the watch app only reads the saved playlists.
+Prompted Playlists are a Spotify beta with no API (SPEC.md §4.5), so these
+prompts are only starting points. Regenerate or edit them in Spotify when the
+results feel wrong; the watch app only reads the saved playlists.
 
 Sample prompts:
 
@@ -113,8 +114,9 @@ Sample prompts:
 | Z4 Hard | `Create a hard interval workout playlist for sprints, climbs, and maximum-effort pushes. Make it high-energy, intense, and motivating, with powerful tracks that feel appropriate for short all-out efforts.` |
 
 After saving the playlists, copy each playlist link and extract the ID using the
-same pattern shown in §8b. Keep those four IDs ready for pool configuration when
-it asks for `Z1`, `Z2`, `Z3`, and `Z4`; that configuration UI is not written yet.
+same pattern shown in "8b. Find a Prompted Playlist ID" below. Keep those four
+IDs ready for pool configuration when it asks for `Z1`, `Z2`, `Z3`, and `Z4`;
+that configuration UI is not written yet.
 
 ## 7. The M0 exit criterion
 
