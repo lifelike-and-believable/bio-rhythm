@@ -92,8 +92,8 @@ The app expects four owner-created Spotify playlists, one for each energy zone.
 Create them by hand in the Spotify mobile app with Prompted Playlists, Spotify's
 AI-generated playlists based on natural-language prompts, then save each result
 to your library. Prompted Playlists are currently an in-app Premium beta
-(SPEC.md §4.5); do this on the mobile app unless Spotify documents desktop
-support.
+(SPEC.md §4.5). Use the mobile app for this step unless Spotify later documents
+desktop support.
 The app uses playlist IDs, not names; these names are suggestions so the pools
 are easy to identify later:
 
@@ -111,10 +111,10 @@ Sample prompts:
 
 | Zone | Prompt |
 |---|---|
-| Z1 Recovery | `Create a recovery workout playlist for warm-ups, cooldowns, and easy movement. Keep it mellow, smooth, and steady, with low intensity and no sudden drops or aggressive tracks. Use music similar to what I already listen to.` |
-| Z2 Aerobic | `Create an aerobic endurance workout playlist for a comfortable sustained effort. Make it upbeat and steady, with moderate energy, positive momentum, and tracks that feel good for long easy runs, rides, or walks.` |
-| Z3 Tempo | `Create a tempo workout playlist for a focused, sustained hard effort. Choose driving, energetic tracks that feel controlled rather than chaotic, with enough intensity to hold a strong pace for several songs.` |
-| Z4 Hard | `Create a hard interval workout playlist for sprints, climbs, and maximum-effort pushes. Make it high-energy, intense, and motivating, with powerful tracks that feel appropriate for short all-out efforts.` |
+| Z1 Recovery | `Create a recovery energy playlist for warm-ups, cooldowns, and easy movement. Keep it mellow, smooth, and steady, with low intensity and no sudden drops or aggressive tracks. Use music similar to what I already listen to.` |
+| Z2 Aerobic | `Create an aerobic energy playlist for comfortable sustained effort. Make it upbeat and steady, with moderate energy, positive momentum, and tracks that feel good for long easy runs, rides, or walks.` |
+| Z3 Tempo | `Create a tempo energy playlist for focused, sustained hard effort. Choose driving, energetic tracks that feel controlled rather than chaotic, with enough intensity to hold a strong pace for several songs.` |
+| Z4 Hard | `Create a hard-effort energy playlist for sprints, climbs, and maximum-effort pushes. Make it high-energy, intense, and motivating, with powerful tracks that feel appropriate for short all-out efforts.` |
 
 After saving the playlists, copy each playlist link and extract the ID using the
 same pattern shown later in this document in "8b. Find a Prompted Playlist ID".
