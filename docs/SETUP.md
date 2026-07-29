@@ -89,9 +89,10 @@ sideloaded build and not a bug in this code. A paid account gives a year.
 ## 6. Create the four energy playlists
 
 The app expects four owner-created Spotify playlists, one for each energy zone.
-Create them by hand in the Spotify mobile app with Prompted Playlists, then save
-each result to your library. Prompted Playlists are currently an in-app Premium
-beta (SPEC.md §4.5); do this on the mobile app unless Spotify documents desktop
+Create them by hand in the Spotify mobile app with Prompted Playlists, Spotify's
+AI-generated playlists based on natural-language prompts, then save each result
+to your library. Prompted Playlists are currently an in-app Premium beta
+(SPEC.md §4.5); do this on the mobile app unless Spotify documents desktop
 support.
 The app uses playlist IDs, not names; these names are suggestions so the pools
 are easy to identify later:
@@ -116,9 +117,9 @@ Sample prompts:
 | Z4 Hard | `Create a hard interval workout playlist for sprints, climbs, and maximum-effort pushes. Make it high-energy, intense, and motivating, with powerful tracks that feel appropriate for short all-out efforts.` |
 
 After saving the playlists, copy each playlist link and extract the ID using the
-same pattern shown in "8b. Find a Prompted Playlist ID" below. Keep those four
-IDs ready for pool configuration when it asks for `Z1`, `Z2`, `Z3`, and `Z4`;
-that configuration UI is not written yet.
+same pattern shown later in this document in "8b. Find a Prompted Playlist ID".
+Keep those four IDs ready for pool configuration when it asks for `Z1`, `Z2`,
+`Z3`, and `Z4`; that configuration UI is not written yet.
 
 ## 7. The M0 exit criterion
 
