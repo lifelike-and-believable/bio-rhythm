@@ -93,7 +93,8 @@ Create them by hand in the Spotify mobile app with Prompted Playlists, then save
 each result to your library. Prompted Playlists are currently an in-app Premium
 beta (SPEC.md §4.5); do this on the mobile app unless Spotify documents desktop
 support.
-Keep the playlist names explicit so they are easy to identify later:
+The app uses playlist IDs, not names; these names are suggestions so the pools
+are easy to identify later:
 
 - `BioRhythm Z1 Recovery`
 - `BioRhythm Z2 Aerobic`
@@ -149,7 +150,7 @@ It doubles as the only check on whether the post-Feb-2026 DTO field names in
 `Sources/SpotifyKit/DTOs/` are right. They were written from §4.3's description,
 not from an observed response.
 
-### 7a. Get a user token
+### 8a. Get a user token
 
 Easiest: the "Try it" console on the Web API reference pages at
 developer.spotify.com. Pick an endpoint such as *Get Playback State* and it
@@ -161,7 +162,7 @@ gone, the fallback is a temporary `print` of the access token in
 
 Tokens last about an hour. Capture in one sitting.
 
-### 7b. Find a Prompted Playlist ID
+### 8b. Find a Prompted Playlist ID
 
 In the Spotify mobile app: open the Prompted Playlist → share → copy link. The
 ID is the segment after `/playlist/` and before the `?`:
@@ -174,7 +175,7 @@ https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
 Use a real Prompted Playlist, not an ordinary one. Whether *that specific kind*
 is readable is the entire question.
 
-### 7c. Run it
+### 8c. Run it
 
 ```bash
 brew install jq                 # the script needs it for redaction
@@ -186,7 +187,7 @@ Scripts/capture-fixtures.sh
 Start playback somewhere first, or `/me/player` returns 204 and
 `player-state.json` captures nothing worth having.
 
-### 7d. Read the result
+### 8d. Read the result
 
 | What you see on `/playlists/{id}/items` | What it means |
 |---|---|
@@ -196,7 +197,7 @@ Start playback somewhere first, or `/me/player` returns 204 and
 | 404 | Playlist not visible to this user, or the path is not `/items`. V-1 fails. |
 | 403 | Premium lapsed, a scope is missing, or it is a withdrawn endpoint (§4.4). |
 
-### 7e. Before committing the fixtures
+### 8e. Before committing the fixtures
 
 **Read every file in `Tests/SpotifyKitTests/Fixtures/`.** The script strips
 images, external URLs, owner blocks, and the playlist ID, but it deliberately
