@@ -1,0 +1,58 @@
+name: CI
+
+# The SwiftPM half of the build: HRDJCore and SpotifyKit, which is most of the
+# code and all of the tests. These run with no simulator, no network, and no
+# credentials — CLAUDE.md requires that and this job is what keeps it honest.
+#
+# The app targets (xcodegen + xcodebuild against a watchOS simulator) are a
+# separate job, added once this one is green.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swiftpm:
+    name: HRDJCore + SpotifyKit
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Printed rather than pinned, on purpose: nobody has seen this runner
+      # image yet. Once the log says which Xcodes are installed, pin one with
+      # `sudo xcode-select -s` so an image bump cannot silently change the
+      # Swift language mode underneath the project.
+      - name: Toolchain
+        run: |
+          sw_vers
+          echo "--- Xcode installs ---"
+          ls -d /Applications/Xcode*.app 2>/dev/null || echo "(none matched)"
+          echo "--- selected ---"
+          xcode-select -p
+          xcodebuild -version
+          swift --version
+
+      # Building tests here rather than letting `swift test` do it means a
+      # compile failure is reported as a build failure, with the whole error
+      # list in one place.
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --skip-build
