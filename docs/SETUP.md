@@ -103,13 +103,14 @@ are easy to identify later:
 
 Prompted Playlists are a Spotify beta with no API (SPEC.md §4.5), so these
 prompts are only starting points. Regenerate or edit them in Spotify when the
-results feel wrong; the watch app only reads the saved playlists.
+tracks do not match the intended energy level for the zone; the watch app only
+reads the saved playlists.
 
 Sample prompts:
 
 | Zone | Prompt |
 |---|---|
-| Z1 Recovery | `Create a recovery workout playlist for warmups, cooldowns, and easy movement. Keep it mellow, smooth, and steady, with low intensity and no sudden drops or aggressive tracks. Use music similar to what I already listen to.` |
+| Z1 Recovery | `Create a recovery workout playlist for warm-ups, cooldowns, and easy movement. Keep it mellow, smooth, and steady, with low intensity and no sudden drops or aggressive tracks. Use music similar to what I already listen to.` |
 | Z2 Aerobic | `Create an aerobic endurance workout playlist for a comfortable sustained effort. Make it upbeat and steady, with moderate energy, positive momentum, and tracks that feel good for long easy runs, rides, or walks.` |
 | Z3 Tempo | `Create a tempo workout playlist for a focused, sustained hard effort. Choose driving, energetic tracks that feel controlled rather than chaotic, with enough intensity to hold a strong pace for several songs.` |
 | Z4 Hard | `Create a hard interval workout playlist for sprints, climbs, and maximum-effort pushes. Make it high-energy, intense, and motivating, with powerful tracks that feel appropriate for short all-out efforts.` |
