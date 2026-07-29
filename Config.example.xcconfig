@@ -1,0 +1,19 @@
+// Copy to Config.local.xcconfig and fill in. Config.local.xcconfig is
+// gitignored; this file is the committed template and must never hold a real
+// value (CLAUDE.md: secrets never in the repo).
+//
+// SPOTIFY_CLIENT_ID
+//   From https://developer.spotify.com/dashboard. Development Mode allows one
+//   client ID per developer and five users per app (SPEC.md §4.1), which is
+//   exactly enough for a single-user sideloaded build.
+//
+// SPOTIFY_REDIRECT_URI
+//   Must match the redirect URI registered in the dashboard exactly, and its
+//   scheme must be registered as a URL type on the iOS companion target.
+//   `//` inside an xcconfig value starts a comment, so the slashes are spelled
+//   through a variable — this is the standard workaround, not a typo.
+
+SLASH = /
+
+SPOTIFY_CLIENT_ID = your_client_id_here
+SPOTIFY_REDIRECT_URI = biorhythm:$(SLASH)$(SLASH)callback
