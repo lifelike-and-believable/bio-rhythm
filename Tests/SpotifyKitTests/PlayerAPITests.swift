@@ -50,11 +50,13 @@ struct PlayerAPITests {
         // R-2: the only actuator. If a commit ever issues a transport call,
         // this is where it would show up first.
         //
-        // Full endpoint paths, not bare verbs: "/play" is a substring of
-        // "/v1/me/player/queue" via "player", so the loose form failed on a
-        // request that was entirely correct.
-        let paths = requests.map(\.url)
-        let transportEndpoints = [
+        // Compare parsed paths for equality rather than searching the whole
+        // URL for a substring. An earlier version looked for "/play", which is
+        // a substring of "/v1/me/player/queue" through "player" — and any
+        // substring check stays vulnerable to the same thing from the other
+        // direction, since a track URI lands in the query string.
+        let paths = try requests.map { try #require(URL(string: $0.url)?.path) }
+        let transportEndpoints: Set<String> = [
             "/v1/me/player/pause",
             "/v1/me/player/next",
             "/v1/me/player/previous",
@@ -63,9 +65,8 @@ struct PlayerAPITests {
             "/v1/me/player/play",
             "/v1/me/player/shuffle",
         ]
-        for endpoint in transportEndpoints {
-            #expect(paths.contains { $0.contains(endpoint) } == false)
-        }
+        #expect(paths.contains { transportEndpoints.contains($0) } == false)
+        #expect(paths == ["/v1/me/player/queue"])
     }
 
     @Test("Transfer targets the requested device without starting playback")
