@@ -32,19 +32,18 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      # Printed rather than pinned, on purpose: nobody has seen this runner
-      # image yet. Once the log says which Xcodes are installed, pin one with
-      # `sudo xcode-select -s` so an image bump cannot silently change the
-      # Swift language mode underneath the project.
+      # Pinned so an image bump cannot silently change the Swift language mode
+      # underneath the project. The image currently carries 26.0 through 26.6;
+      # 26.5 is what this project has actually been compiled against. Bump
+      # deliberately, with a run to prove it, not by drifting.
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+
       - name: Toolchain
         run: |
           sw_vers
-          echo "--- Xcode installs ---"
-          ls -d /Applications/Xcode*.app 2>/dev/null || echo "(none matched)"
-          echo "--- selected ---"
-          xcode-select -p
           xcodebuild -version
           swift --version
 

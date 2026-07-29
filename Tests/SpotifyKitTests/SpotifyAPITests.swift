@@ -87,7 +87,7 @@ struct SpotifyAPITests {
         let error = await #expect(throws: SpotifyError.self) {
             _ = try await api.send(method: "GET", path: "/v1/me/player")
         }
-        guard case .forbidden(let body) = try #require(error as? SpotifyError) else {
+        guard case .forbidden(let body) = try #require(error) else {
             Issue.record("expected .forbidden, got \(String(describing: error))")
             return
         }
@@ -102,7 +102,7 @@ struct SpotifyAPITests {
         let error = await #expect(throws: SpotifyError.self) {
             _ = try await api.send(method: "POST", path: "/v1/me/player/queue")
         }
-        guard case .notFound = try #require(error as? SpotifyError) else {
+        guard case .notFound = try #require(error) else {
             Issue.record("expected .notFound, got \(String(describing: error))")
             return
         }
@@ -118,7 +118,7 @@ struct SpotifyAPITests {
         let error = await #expect(throws: SpotifyError.self) {
             _ = try await api.send(method: "GET", path: "/v1/me/player")
         }
-        guard case .rateLimited(let retryAfter) = try #require(error as? SpotifyError) else {
+        guard case .rateLimited(let retryAfter) = try #require(error) else {
             Issue.record("expected .rateLimited, got \(String(describing: error))")
             return
         }
@@ -144,7 +144,7 @@ struct SpotifyAPITests {
         let error = await #expect(throws: SpotifyError.self) {
             _ = try await api.send(method: "GET", path: "/v1/me/player")
         }
-        guard case .server(let status, _) = try #require(error as? SpotifyError) else {
+        guard case .server(let status, _) = try #require(error) else {
             Issue.record("expected .server, got \(String(describing: error))")
             return
         }
