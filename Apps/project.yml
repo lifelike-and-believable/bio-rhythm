@@ -95,9 +95,13 @@ targets:
         WKCompanionAppBundleIdentifier: com.biorhythm.companion
         SPOTIFY_CLIENT_ID: $(SPOTIFY_CLIENT_ID)
         SPOTIFY_REDIRECT_URI: $(SPOTIFY_REDIRECT_URI)
+        # Describes what the app does *now*. M1 reads HR and shows a zone;
+        # nothing chooses a track until M3 enables actuation, and a permission
+        # prompt that describes unbuilt behaviour is asking for consent to
+        # something that is not happening. Revisit with M3.
         NSHealthShareUsageDescription: >-
-          bio-rhythm reads your heart rate during a workout to choose which
-          track plays next.
+          bio-rhythm reads your heart rate during a workout to show your effort
+          zone and record it in the session log.
 
 # Declared explicitly rather than relying on XcodeGen's default scheme
 # generation, because CI builds by scheme name and CLAUDE.md documents

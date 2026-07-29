@@ -59,8 +59,7 @@ final class WorkoutCoordinator {
         guard state == .idle || isFailed else { return }
 
         state = .starting
-        window = HRWindow(configuration: configuration)
-        sampleCount = 0
+        resetObservation()
 
         source.onReading = { [weak self] reading in
             self?.ingest(reading)
@@ -86,12 +85,38 @@ final class WorkoutCoordinator {
     }
 
     func stop() async {
-        log(.sessionEnd)
+        guard state != .idle else { return }
+        // Idle first: HealthKit's state callback fires during teardown and
+        // would otherwise re-enter here.
+        state = .idle
+
+        // Awaited, not fired into a Task. `log` is fire-and-forget everywhere
+        // else, which is fine mid-session — but the close below would race it,
+        // and losing the record that says when the session ended is losing the
+        // one boundary every later reading of the file depends on.
+        await logAwaiting(.sessionEnd)
+
         await source.stop(saveWorkout: false)
         await telemetry?.close()
         telemetry = nil
         sessionOrigin = nil
-        state = .idle
+        resetObservation()
+    }
+
+    /// Clears everything derived from the previous session's samples.
+    ///
+    /// Not just the window: leaving `zone` and `instantaneousBPM` behind means
+    /// a new session opens showing the last reading of the old one, which is
+    /// indistinguishable on screen from a live value and is worst after a
+    /// dropout, where the stale figure is already wrong.
+    private func resetObservation() {
+        window = HRWindow(configuration: configuration)
+        instantaneousBPM = nil
+        observedHR = nil
+        zone = nil
+        sampleCount = 0
+        isStale = false
+        wasStale = false
     }
 
     private var isFailed: Bool {
@@ -140,14 +165,25 @@ final class WorkoutCoordinator {
 
     private func log(_ event: Decision.Event) {
         guard let telemetry else { return }
+        let record = decision(event)
+        // Unordered by design: records carry their own timestamps, so a reader
+        // sorts. What must not happen is a record going missing, which is why
+        // session end takes the awaited path.
+        Task { await telemetry.append(record) }
+    }
 
+    private func logAwaiting(_ event: Decision.Event) async {
+        guard let telemetry else { return }
+        await telemetry.append(decision(event))
+    }
+
+    private func decision(_ event: Decision.Event) -> Decision {
         var decision = Decision(at: clock.now, event: event)
         decision.hrInstant = instantaneousBPM
         decision.hrWindowMean = observedHR
         decision.windowSampleCount = sampleCount
         decision.currentZone = zone
-
-        Task { await telemetry.append(decision) }
+        return decision
     }
 
     private func apply(_ sessionState: HKWorkoutSessionState) {
@@ -159,7 +195,11 @@ final class WorkoutCoordinator {
             // M1, but the state has to be visible or M3 inherits a silent bug.
             state = .paused
         case .ended, .stopped:
-            state = .idle
+            // Ended from outside the app — the Workout app taking the session,
+            // or HealthKit failing it. Flipping the label alone would leave the
+            // builder collecting and the log file open until the owner happened
+            // to press End, so tear down for real.
+            Task { await stop() }
         default:
             break
         }

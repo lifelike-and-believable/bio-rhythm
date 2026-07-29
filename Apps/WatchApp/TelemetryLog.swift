@@ -74,9 +74,13 @@ actor TelemetryLog {
     func append(_ decision: Decision, at wallClock: Date = Date()) {
         guard let handle else { return }
         do {
-            let data = try encoder.encode(Record(t: wallClock, decision: decision))
-            handle.write(data)
-            handle.write(Data("\n".utf8))
+            var line = try encoder.encode(Record(t: wallClock, decision: decision))
+            line.append(contentsOf: Data("\n".utf8))
+            // `write(contentsOf:)`, not `write(_:)`. The latter does not throw
+            // — it raises an ObjC exception on a full disk, which sails past
+            // the catch below and takes the app with it. One call rather than
+            // two so a failure cannot leave a half-written line either.
+            try handle.write(contentsOf: line)
         } catch {
             // Nothing useful to do here, and nowhere to report it that would
             // not itself be a log write.
