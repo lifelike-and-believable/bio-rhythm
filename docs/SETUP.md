@@ -86,7 +86,35 @@ sideloaded build and not a bug in this code. A paid account gives a year.
 5. Open the watch app. It should leave "Waiting for the phone" and show a track,
    or "Nothing playing" if nothing is.
 
-## 6. The M0 exit criterion
+## 6. Create the four energy playlists
+
+The app expects four owner-created Spotify playlists, one for each energy zone.
+Create them by hand in the Spotify mobile app with Prompted Playlists, then save
+each result to your library. Keep the playlist names explicit so they are easy to
+identify later:
+
+- `BioRhythm Z1 Recovery`
+- `BioRhythm Z2 Aerobic`
+- `BioRhythm Z3 Tempo`
+- `BioRhythm Z4 Hard`
+
+Prompted Playlists are a Spotify beta with no API (§4.5), so these prompts are
+only starting points. Regenerate or edit them in Spotify when the results feel
+wrong; the watch app only reads the saved playlists.
+
+Sample prompts:
+
+| Zone | Prompt |
+|---|---|
+| Z1 Recovery | `Create a recovery workout playlist for warmups, cooldowns, and easy movement. Keep it mellow, smooth, and steady, with low intensity and no sudden drops or aggressive tracks. Use music similar to what I already listen to.` |
+| Z2 Aerobic | `Create an aerobic endurance workout playlist for a comfortable sustained effort. Make it upbeat and steady, with moderate energy, positive momentum, and tracks that feel good for long easy runs, rides, or walks.` |
+| Z3 Tempo | `Create a tempo workout playlist for a focused, sustained hard effort. Choose driving, energetic tracks that feel controlled rather than chaotic, with enough intensity to hold a strong pace for several songs.` |
+| Z4 Hard | `Create a hard interval workout playlist for sprints, climbs, and maximum-effort pushes. Make it high-energy, intense, and motivating, with powerful tracks that feel appropriate for short all-out efforts.` |
+
+After saving the playlists, use their playlist IDs wherever pool configuration
+asks for `Z1`, `Z2`, `Z3`, and `Z4`.
+
+## 7. The M0 exit criterion
 
 Play something on any device. **Power the phone fully off** — not locked, not
 Bluetooth off — and open the watch app. It should still show the track, having
@@ -106,7 +134,7 @@ criterion.
 
 ---
 
-## 7. Capture API fixtures — and answer V-1
+## 8. Capture API fixtures — and answer V-1
 
 This is the second gating item. **V-1 blocks SPEC.md §8 (Pool management) in
 M2**: if Prompted Playlists do not return an `items` object, pool management has
