@@ -22,6 +22,13 @@ actor TelemetryLog {
     /// the actor, it is isolated for free.
     private let encoder: JSONEncoder
 
+    /// §11.3's stamps are "2026-07-28T14:03:11.482Z". `ISO8601FormatStyle` is a
+    /// struct and Sendable, unlike `ISO8601DateFormatter`, so it can be shared.
+    private static let stampStyle = Date.ISO8601FormatStyle(
+        includingFractionalSeconds: true,
+        timeZone: .gmt
+    )
+
     /// Where session logs live. Inside the app container, so the system reclaims
     /// them with the app and nothing needs a privacy prompt.
     static func defaultDirectory() throws -> URL {
@@ -38,9 +45,13 @@ actor TelemetryLog {
 
     init(directory: URL, startedAt: Date = Date()) throws {
         let encoder = JSONEncoder()
-        // §11.3's example stamps are "2026-07-28T14:03:11.482Z" — millisecond
+        // `.iso8601` drops the fractional seconds, and there is no built-in
+        // strategy that keeps them, so the style does the work. Millisecond
         // precision matters when reconstructing a commit window afterwards.
-        encoder.dateEncodingStrategy = .iso8601WithFractionalSeconds
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(date.formatted(Self.stampStyle))
+        }
         encoder.outputFormatting = [.withoutEscapingSlashes]
         self.encoder = encoder
 
