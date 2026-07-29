@@ -9,8 +9,6 @@ import SpotifyKit
 /// the phone being reachable (G3, R-5).
 @MainActor
 final class PhoneLink: NSObject, ObservableObject {
-    static let refreshTokenKey = "refreshToken"
-
     @Published private(set) var hasToken = false
     @Published private(set) var lastError: String?
 
@@ -59,7 +57,7 @@ extension PhoneLink: WCSessionDelegate {
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
-        guard let token = userInfo[Self.refreshTokenKey] as? String else { return }
+        guard let token = userInfo[WatchTransfer.refreshTokenKey] as? String else { return }
         Task { @MainActor in
             self.accept(refreshToken: token)
         }

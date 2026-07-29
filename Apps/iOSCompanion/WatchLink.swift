@@ -25,9 +25,6 @@ final class WatchLink: NSObject, ObservableObject {
         }
     }
 
-    /// Key for the transferred dictionary. The watch side must agree.
-    static let refreshTokenKey = "refreshToken"
-
     @Published private(set) var pendingTransfers = 0
     @Published private(set) var lastError: String?
 
@@ -46,7 +43,7 @@ final class WatchLink: NSObject, ObservableObject {
 
         // Queued by the system and retried until it lands, which is the whole
         // reason for choosing this over application context.
-        session.transferUserInfo([Self.refreshTokenKey: refreshToken])
+        session.transferUserInfo([WatchTransfer.refreshTokenKey: refreshToken])
         pendingTransfers = session.outstandingUserInfoTransfers.count
     }
 }
