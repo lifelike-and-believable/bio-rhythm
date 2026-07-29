@@ -1,0 +1,75 @@
+name: CI
+
+# The SwiftPM half of the build: HRDJCore and SpotifyKit, which is most of the
+# code and all of the tests. These run with no simulator, no network, and no
+# credentials — CLAUDE.md requires that and this job is what keeps it honest.
+#
+# The app targets (xcodegen + xcodebuild against a watchOS simulator) are a
+# separate job, added once this one is green.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+  workflow_dispatch:
+
+# Least privilege: this job only reads the checkout. Set here rather than per
+# job so a future job cannot quietly inherit a broader default token.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swiftpm:
+    name: HRDJCore + SpotifyKit
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned so an image bump cannot silently change the Swift language mode
+      # underneath the project. The image currently carries 26.0 through 26.6;
+      # 26.5 is what this project has actually been compiled against. Bump
+      # deliberately, with a run to prove it, not by drifting.
+      - name: Select Xcode
+        env:
+          XCODE_APP: /Applications/Xcode_26.5.app
+        run: |
+          # A bare `xcode-select -s` on a missing path fails with a terse
+          # error that reads like a broken workflow rather than an image bump.
+          # Say which pin is stale and what is actually available instead.
+          if [ ! -d "$XCODE_APP" ]; then
+            echo "::error::Pinned toolchain $XCODE_APP is not on this runner image."
+            echo "Installed Xcodes:"
+            ls -d /Applications/Xcode*.app 2>/dev/null || echo "  (none found)"
+            echo "Update the XCODE_APP pin in .github/workflows/ci.yml to one of the above."
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP"
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      # Building tests here rather than letting `swift test` do it means a
+      # compile failure is reported as a build failure, with the whole error
+      # list in one place.
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --skip-build

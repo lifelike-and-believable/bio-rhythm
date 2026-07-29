@@ -1,6 +1,9 @@
 import Foundation
 import Testing
-import SpotifyKit
+// @testable: the form-encoding helpers are internal on purpose — they are an
+// implementation detail of the token request, not API — but the encoding is
+// exactly the sort of thing that fails silently, so it is tested directly.
+@testable import SpotifyKit
 
 @Suite("PKCE and the authorization request — SPEC.md §9.1, §9.2")
 struct AuthorizationTests {
