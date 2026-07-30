@@ -14,6 +14,7 @@ Single user, sideloaded, not for distribution.
 - **[`SPEC.md`](SPEC.md)** — requirements and design. Authoritative.
 - **[`CLAUDE.md`](CLAUDE.md)** — working rules for anyone, human or agent, changing this repo.
 - **[`docs/SETUP.md`](docs/SETUP.md)** — Spotify registration, local config, onboarding.
+- **[`docs/pools.md`](docs/pools.md)** — the four playlists: prompts, sizing, and the auto-refresh decision.
 - **[`docs/verification.md`](docs/verification.md)** — what nobody has checked yet, and open design questions.
 
 ## Layout

@@ -138,6 +138,10 @@ https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
 Use a real Prompted Playlist, not an ordinary one. Whether *that specific kind*
 is readable is the entire question.
 
+If you have not created the four pools yet, [`docs/pools.md`](pools.md) covers
+the prompts, how big each pool wants to be, and why auto-refresh is worth
+leaving off until M2's tuning is finished.
+
 ### 7c. Run it
 
 ```bash
