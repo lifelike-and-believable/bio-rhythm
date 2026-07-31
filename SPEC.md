@@ -444,10 +444,32 @@ Minimum viable, glanceable, one screen:
 - Current zone, with every zone shown as a discrete indicator (not a continuous gauge — the system is discrete and the UI should not imply otherwise). Five steps as of §6.1's meditation zone.
 - Now playing: title and artist, truncated.
 - Next committed track, or "deciding" during `OBSERVING`, or a warning glyph in `MISSED` / `DEGRADED`.
-- Override indicator with countdown when active, plus "resume auto".
 - Long-press: blocklist current track. Digital Crown: manual zone lock.
 
 No animations that run continuously. Battery matters more than polish here.
+
+#### The override indicator is a state of the zone row, not a row of its own
+
+§6.6 requires an unambiguous override indicator with remaining time and a "resume auto" action. It is **not** a separate element:
+
+- The thing being overridden *is* the zone, so the zone row shows it: the active capsule outlined rather than filled, and a lock glyph beside the label.
+- **The row is the button.** Tapping it clears the hold. Nothing else on screen changes size or position when an override begins or ends.
+
+Screen space is the scarcest resource on a watch. An element meaningful for roughly 5 % of a session is expensive as a permanent row and jarring as one that appears and pushes everything below it down. Restyling a row that is always present costs nothing and cannot be missed, which is what "unambiguous" asks for.
+
+**The three causes get three labels.** §6.6 lists a detected skip, a manual zone change, and a pause/resume cycle, and holds the zone identically for all three. They do not mean the same thing to the person reading the screen:
+
+| Cause | Label | Why it differs |
+|---|---|---|
+| Manual zone change | `Locked` | Deliberate. The owner knows why it is on and does not need telling. |
+| Pause / resume | `Paused` | Inferred from an act that may carry no intent at all. |
+| Detected skip (R-10) | `Skipped` | **A guess, and the one that can be wrong.** |
+
+A track ends early when it was skipped, but also when the §7.1 estimate drifted, when Spotify moved on by itself, or when something else took playback. A false positive suspends auto-control for three minutes with no visible cause. One word of provenance is the whole fix: if the row says `Skipped` and the owner did not skip, the system has just explained its own mistake — and the row saying it is already the button that undoes it.
+
+**The countdown is coarse:** `~3 min`, `~2 min`, `~1 min`, `under a minute`. Four updates rather than 180.
+
+This is a deliberate reading of "with countdown" against "no animations that run continuously" two lines above. The battery argument alone is weak — heart rate already redraws at roughly 1 Hz while the screen is active — but a ticking second hand pulls the eye during effort, and the only question it is asked is "is this nearly over?", which does not need second precision.
 
 ### 11.3 Telemetry
 

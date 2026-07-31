@@ -249,3 +249,25 @@ these tracks when the constants get tuned.
 
 If the literal reading was intended, the change is one line and I2's test has
 to change with it. It should not change quietly.
+
+### D-7. R-10 skip detection has no implementation, and its threshold decides how often the override is wrong
+
+§6.6 lists a detected manual skip as an override trigger, and §11.2 now labels it `Skipped` on screen. Nothing detects one.
+
+`ZoneModel` holds the override, `Controller.registerManualInput` sets it, and
+`TrackClock` reports track changes and seeks — but no rule anywhere turns "the
+track changed" into "the owner skipped". §6.6's most common trigger is,
+at present, unreachable except through a manual zone lock.
+
+The rule is not hard to state: a `.started` observation arriving while
+`remaining` was still comfortably positive is a skip. **"Comfortably" is the
+whole problem.** Set it too tight and ordinary §7.1 estimate drift near a
+boundary reads as a skip, suspending auto-control for three minutes for no
+reason the owner can see. Set it too loose and real skips go unnoticed, which
+is the failure R-10 exists to prevent.
+
+Deliberately not picked yet. The distribution of `estimatedEndDriftMs` in the
+first M2 traces is exactly the evidence needed, and guessing before those exist
+is the thing CLAUDE.md non-negotiable #4 is about. Until then the label on the
+zone row is the mitigation: an override the owner did not ask for says so, and
+the row saying it is the button that clears it.
