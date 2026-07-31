@@ -27,6 +27,8 @@ struct SessionView: View {
     @ObservedObject private var link: PhoneLink
     @State private var coordinator: WorkoutCoordinator
     @State private var page: Page = .glance
+    /// True when the wrist is down and watchOS has dimmed the display.
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     private let store: any TokenStore
 
     private enum Page: Hashable {
@@ -48,6 +50,14 @@ struct SessionView: View {
                 .tag(Page.controls)
         }
         .tabViewStyle(.page)
+        .onChange(of: isLuminanceReduced) { _, dimmed in
+            // Dropping the wrist while on the controls page would otherwise
+            // leave a dimmed `End workout` as the always-on display: useless to
+            // read, and a slightly nervous thing to have sitting under a
+            // sleeve. The glance page is the only sensible thing to show when
+            // nobody is looking on purpose.
+            if dimmed { page = .glance }
+        }
     }
 
     // MARK: - The glance page
@@ -56,7 +66,7 @@ struct SessionView: View {
     /// and it is why nothing here can end the session by accident.
     @ViewBuilder
     private var glance: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: isLuminanceReduced ? 6 : 10) {
             heartRate
 
             ZoneRow(
@@ -64,17 +74,24 @@ struct SessionView: View {
                 pendingZone: coordinator.pendingZone,
                 isOverridden: coordinator.isOverridden,
                 overrideCause: coordinator.overrideCause?.label,
+                isDimmed: isLuminanceReduced,
                 onLock: { coordinator.lockZone($0) },
                 onResume: { coordinator.resumeAuto() }
             )
 
             decisionLine
 
-            if coordinator.state == .idle {
-                idle
-            } else {
-                Divider()
-                NowPlayingSection(link: link, store: store)
+            // Always-On drops now playing: most likely of anything here to be
+            // stale, least useful with the wrist down, and the readiest thing
+            // to give back when the budget is tight. Raising the wrist brings
+            // it straight back.
+            if !isLuminanceReduced {
+                if coordinator.state == .idle {
+                    idle
+                } else {
+                    Divider()
+                    NowPlayingSection(link: link, store: store)
+                }
             }
 
             Spacer(minLength: 0)
@@ -92,6 +109,13 @@ struct SessionView: View {
                 // Stale means the number on screen is the last one that
                 // arrived, not the current one. Saying so is cheaper than
                 // letting the owner trust a frozen figure.
+                //
+                // It does **not** cover the Always-On case, and cannot: there
+                // the samples keep arriving and it is the pixels that are old.
+                // `HRWindow` reports no gap, so nothing here can distinguish a
+                // dimmed snapshot from a live reading. See V-8 and the note in
+                // docs/verification.md — the number below can be a minute out
+                // of date while the app believes it is current.
                 .foregroundStyle(coordinator.isStale ? .secondary : .primary)
             Text("bpm")
                 .font(.caption)

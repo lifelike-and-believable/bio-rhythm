@@ -32,6 +32,10 @@ struct ZoneRow: View {
     let pendingZone: Zone?
     let isOverridden: Bool
     let overrideCause: String?
+    /// Always-On. Renders the reduced-luminance variant and drops every
+    /// interaction, because there are none to have: raising the wrist wakes
+    /// the screen before a touch or a Crown turn can land.
+    var isDimmed: Bool = false
     let onLock: @MainActor (Zone) -> Void
     let onResume: @MainActor () -> Void
 
@@ -40,6 +44,38 @@ struct ZoneRow: View {
     @FocusState private var crownFocus: Bool
 
     var body: some View {
+        if isDimmed {
+            dimmed
+        } else {
+            interactive
+        }
+    }
+
+    /// §11.2's Always-On zone: **the name in real type, and no capsules.**
+    ///
+    /// Five thin capsules with one filled in an accent colour is a good
+    /// full-brightness affordance and a poor dim one. At reduced luminance and
+    /// reduced colour, "filled accent" and "grey" converge toward each other,
+    /// and counting position on ~29 pt capsules in low light is the wrong thing
+    /// to ask of someone glancing at their wrist. A word is unambiguous at any
+    /// brightness.
+    private var dimmed: some View {
+        HStack(spacing: 4) {
+            Text(zone?.label ?? "—")
+                .font(.system(size: 17, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+            if isOverridden {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var interactive: some View {
         VStack(alignment: .leading, spacing: 4) {
             capsules
             label
