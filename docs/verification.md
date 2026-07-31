@@ -314,28 +314,40 @@ is not that the control law was wrong, it is that the display was old. **V-8**
 measures the actual refresh budget and decides whether the decision line
 belongs in Always-On at all.
 
-### D-8. `locationType` is pinned to `.unknown`, and R-14 gives that a cost
+### D-8. `locationType` — **settled: set it honestly, including `.outdoor`**
 
-§10 sets `HKWorkoutConfiguration.locationType = .unknown`. That was free when
-the workout session existed only to obtain heart rate and background runtime.
-It is no longer free: the owner has said R-14 matters to them, and the saved
-workout is now a record they intend to keep.
+§10 pinned `locationType = .unknown`. That was free when the workout session
+existed only to obtain heart rate and background runtime, and stopped being
+free once R-14 made the saved workout a record the owner keeps: `.unknown`
+gets a conservative energy estimate for exactly the activities most likely to
+be used.
 
-For location-sensitive activities — running, cycling, walking — `.indoor` and
-`.outdoor` change how the system estimates energy, and `.unknown` gets a
-conservative middle. So the ring credit R-14 exists to provide is slightly
-wrong for exactly the activities most likely to be used.
+What made it non-obvious was battery. §11.2 said "battery matters more than
+polish", and declaring `.outdoor` invites the system to use GPS for distance.
 
-The fix is a contextual toggle on the idle screen, shown only when the chosen
-activity type is location-sensitive, and it is cheap. **What stops it being
-obvious is battery.** Declaring `.outdoor` may cause the system to enable GPS
-for distance, and §11.2 is explicit that battery matters more than polish here.
-Trading watch battery mid-workout for a better calorie estimate afterwards is
-not a trade to make on the owner's behalf.
+**Resolved 2026-07-31 by the owner: the battery bar is parity with other
+workout apps, not minimalism.** §11.2 now says so directly. Spending roughly
+what Apple's Workout app spends, to produce a workout record about as good as
+Apple's Workout app produces, is the trade this project should make — and the
+earlier framing would have declined it by default.
 
-Not decided. Needs one measured session with `.outdoor` against one with
-`.unknown` to know what the battery actually costs, which makes it a companion
-to V-8 rather than something to reason about further.
+**Three tiers, only two of which are in scope.** Worth separating, because "add
+GPS" covers wildly different amounts of work:
+
+1. **`locationType` chosen per activity.** One enum on the configuration, no
+   new permissions, no new code paths. In §11.2's idle-screen list, combined
+   with activity type so it is a single choice rather than two.
+2. **Location authorisation, for GPS-derived distance.** Small — a usage string
+   and a prompt — but it adds a permission to onboarding, which is a real UX
+   cost paid once. In scope under the parity bar.
+3. **`HKWorkoutRouteBuilder`, for the route map in Fitness.** *Not* in scope.
+   CoreLocation plumbing, continuous location collection, and a route object to
+   manage — and §3 excludes GPS routes as a non-goal. Tier 1 improves the
+   estimate; only tier 3 draws the map, and nothing said so far asks for the
+   map.
+
+If the map turns out to be wanted, it is a separate decision against §3 rather
+than an extension of this one.
 
 ### Product framing: the single-workout-session constraint is accepted
 

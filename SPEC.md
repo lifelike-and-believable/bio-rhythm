@@ -412,7 +412,8 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 ## 10. HealthKit integration
 
-- `HKWorkoutConfiguration`: `activityType` configurable, default `.other`; `locationType = .unknown`.
+- `HKWorkoutConfiguration`: `activityType` and `locationType` are both chosen on the idle screen (§11.2), which offers them as a single combined choice. `.other` / `.unknown` is the fallback, not the default for everything.
+- **Location type is set honestly**, including `.outdoor`. It materially improves the system's energy estimate for running, cycling and walking, which is the ring credit R-14 exists to provide. Accepting whatever GPS the system then uses for distance is a deliberate trade — see the battery bar below.
 - Authorization: read `HKQuantityType(.heartRate)`; share `HKWorkoutType` only if R-14 is enabled.
 - Use `HKLiveWorkoutBuilder` with `HKLiveWorkoutDataSource`. Read HR from `workoutBuilder(_:didCollectDataFor:)` via `statistics(for:)?.mostRecentQuantity()`, converted to `count/min`.
 - **Collect the data source's default types for the activity, not heart rate alone.** §3 excludes pace, GPS and calories as things this app *surfaces or reasons about*; it does not ask for a deliberately impoverished workout record. With R-14 enabled the saved session should carry the energy data the watch would otherwise have produced, or the Move ring falls back to an ambient estimate that is worse than the one a workout session affords. The control law still reads nothing but heart rate.
@@ -449,7 +450,9 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 **Two horizontally-paged screens, neither of which scrolls.** A glance page that is read-only, and a controls page holding every action.
 
-No animations that run continuously. Battery matters more than polish here.
+No animations that run continuously — a workout screen should not carry moving decoration, and it is unreadable at a glance if it does.
+
+**The battery bar is parity, not minimalism.** This app should cost about what any other workout app costs for the same session, and no effort is owed beyond that. Earlier drafts treated battery as a reason to decline features; it is not. If a capability makes the workout record better and costs roughly what Apple's own Workout app costs for it — GPS-derived distance being the case in point — take it. What the rule still forbids is spending battery on decoration.
 
 #### Why two pages rather than one scrolling screen
 
@@ -484,10 +487,37 @@ Readiness is not decoration. Today the button offers to start a session whether
 or not a token exists, whether or not Spotify is reachable, and whether or not
 the pools resolve — pressing it and finding out is the wrong order.
 
-**Activity type is chosen here**, from the full `HKWorkoutActivityType`
-catalogue minus the deprecated cases, ordered most-recently-used first and
-alphabetically below that. The ordering is what makes ~70 entries tractable on
-a watch: after a few sessions the two or three that matter are at the top.
+**Activity type is chosen here**, from a curated list — not the full
+`HKWorkoutActivityType` catalogue. The enum has no public display-name API, so
+every entry offered is a hand-written mapping that has to be maintained and can
+be subtly wrong; ~70 of them is a lot of surface for a single-user app, and
+most of it would never be picked.
+
+Each entry carries its own location variants, so the choice is one decision
+rather than two:
+
+| Activity | Offered as |
+|---|---|
+| Running | Outdoor · Indoor |
+| Walking | Outdoor · Indoor |
+| Cycling | Outdoor · Indoor |
+| Hiking | Outdoor |
+| Rowing | Indoor · Outdoor |
+| Elliptical | Indoor |
+| Stair Stepper | Indoor |
+| Traditional Strength Training | Indoor |
+| Functional Strength Training | Indoor |
+| High Intensity Interval Training | Indoor · Outdoor |
+| Yoga | Indoor |
+| Mind & Body | Indoor |
+| Other | — |
+
+`Mind & Body` is the one to keep even though it looks like padding: it is the
+activity for the Z0 meditation zone, which otherwise has no sensible label.
+
+Adding an entry later is one row and one display string. Swimming is
+deliberately absent — it needs `HKWorkoutSwimmingLocationType` rather than the
+ordinary indoor/outdoor pair, and headphones underwater are their own problem.
 
 This is the one piece of R-13's configuration surface pulled forward out of M4,
 because R-14 makes it load-bearing: a year of sessions labelled `Other` is a
