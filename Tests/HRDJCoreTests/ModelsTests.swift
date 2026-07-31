@@ -6,9 +6,11 @@ import HRDJCore
 struct ModelsTests {
     @Test("Zones order by energy and carry the §6.1 labels")
     func zoneOrdering() {
-        #expect(Zone.allCases == [.z1, .z2, .z3, .z4])
+        #expect(Zone.allCases == [.meditation, .z1, .z2, .z3, .z4])
+        #expect(Zone.meditation < Zone.z1)
         #expect(Zone.z1 < Zone.z4)
         #expect(Zone.z3 > Zone.z2)
+        #expect(Zone.meditation.label == "Meditation")
         #expect(Zone.z1.label == "Recovery")
         #expect(Zone.z2.label == "Aerobic")
         #expect(Zone.z3.label == "Tempo")
@@ -18,8 +20,11 @@ struct ModelsTests {
     @Test("Raw values are the zone indices the control law arithmetic uses")
     func zoneIndices() {
         // §6.3 indexes `boundaries` by zone and §6.5 clamps on zone ± 1, so
-        // the raw values have to be 0...3 contiguous, not decorative.
-        #expect(Zone.allCases.map(\.rawValue) == [0, 1, 2, 3])
+        // the raw values have to be 0...4 contiguous, not decorative. The
+        // meditation zone sits at the bottom rather than being bolted on at
+        // -1, so every existing index calculation keeps working unchanged.
+        #expect(Zone.allCases.map(\.rawValue) == [0, 1, 2, 3, 4])
+        #expect(Zone.allCases == Zone.allCases.sorted())
     }
 
     @Test("Each zone maps to its pool and back")
@@ -27,8 +32,14 @@ struct ModelsTests {
         for zone in Zone.allCases {
             #expect(zone.poolID.zone == zone)
         }
+        #expect(Zone.meditation.poolID == .z0)
+        #expect(PoolID.z0.rawValue == "Z0")
         #expect(Zone.z3.poolID == .z3)
         #expect(PoolID.z3.rawValue == "Z3")
+
+        // §8 configures one playlist per pool. Every zone needs one or
+        // selection has nowhere to go.
+        #expect(PoolID.allCases.count == Zone.allCases.count)
     }
 
     @Test(
@@ -69,7 +80,13 @@ struct ModelsTests {
         #expect(json["selectedFromPool"] as? String == "Z3")
         #expect(json["event"] as? String == "commit")
         #expect(json["outcome"] as? String == "success")
-        #expect(json["currentZone"] as? Int == 1)
+        // Zone encodes as its raw index. Z2 is 2, not 1: adding the meditation
+        // zone at the bottom shifted every zone up by one. Pinned as a literal
+        // because that shift is exactly the kind of change a log reader has to
+        // know about, and no §11.3 log has been recorded yet — after M2 starts
+        // producing traces, renumbering here breaks comparability across
+        // sessions and is no longer free.
+        #expect(json["currentZone"] as? Int == 2)
 
         // `t` is a wall-clock stamp and HRDJCore has no wall clock; the
         // logging layer adds it. The monotonic instant must not leak into the

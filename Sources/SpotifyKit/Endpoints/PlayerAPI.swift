@@ -1,4 +1,5 @@
 import Foundation
+import HRDJCore
 
 /// The player endpoints from SPEC.md §4.2, and only those.
 ///

@@ -4,7 +4,7 @@ import SpotifyKit
 
 /// The M1 screen. SPEC.md §11.2, as much of it as M1 has anything to put in.
 ///
-/// Present: heart rate large, the four zones as a discrete indicator, now
+/// Present: heart rate large, the five zones as a discrete indicator, now
 /// playing. Absent because the systems behind them do not exist yet: the next
 /// committed track, the override countdown, the blocklist long-press, the
 /// Digital Crown zone lock.
@@ -102,9 +102,13 @@ struct SessionView: View {
     }
 }
 
-/// Four discrete steps, never a gauge. §11.2 is explicit about this: the system
-/// is discrete and a continuous bar would imply a resolution the actuator does
-/// not have.
+/// One discrete step per zone, never a gauge. §11.2 is explicit about this: the
+/// system is discrete and a continuous bar would imply a resolution the
+/// actuator does not have.
+///
+/// Driven off `Zone.allCases`, so the meditation zone appears here without a
+/// change. On a 41 mm watch five capsules is still legible; if a sixth zone is
+/// ever added this wants revisiting rather than another divide.
 struct ZoneIndicator: View {
     let zone: Zone?
 

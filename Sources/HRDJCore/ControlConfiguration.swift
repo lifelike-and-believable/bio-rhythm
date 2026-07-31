@@ -28,8 +28,15 @@ public struct ControlConfiguration: Hashable, Sendable {
     /// Set explicitly by the owner. §6.1 is emphatic that this is not computed
     /// from age.
     public var maxHR: Int
-    /// Lower bounds as a fraction of `maxHR`, for Z2, Z3, Z4.
-    public var zoneFractions: [Double] = [0.60, 0.70, 0.82]
+    /// Lower bounds as a fraction of `maxHR`, for Z1, Z2, Z3, Z4. Ascending.
+    ///
+    /// The first entry is `MEDITATION_CEILING` — the Z0/Z1 boundary, 62 bpm at
+    /// maxHR 182. Unlike the three above it, that one is a personal choice
+    /// rather than a §6.7 tuning constant, so non-negotiable #4 does not hold
+    /// it hostage to M2 logs: it belongs with `maxHR`. It should still move on
+    /// evidence — sit still, watch the number, and put it above where you
+    /// actually settle.
+    public var zoneFractions: [Double] = ZoneBoundaries.defaultFractions
     /// Hysteresis half-width, as a fraction of `maxHR`. Entering a zone
     /// requires more than leaving it; that asymmetry is the point (§6.3).
     public var marginFraction: Double = 0.025

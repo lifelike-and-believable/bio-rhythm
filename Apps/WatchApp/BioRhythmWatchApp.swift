@@ -10,8 +10,12 @@ struct BioRhythmWatchApp: App {
     @StateObject private var link: PhoneLink
 
     /// The owner's maximum, set explicitly — §6.1 is emphatic that this is not
-    /// derived from age. At 182 the §6.1 thresholds are 109 / 127 / 149 bpm and
-    /// the §6.3 hysteresis margin is 4.55 bpm.
+    /// derived from age. At 182 the thresholds are 62 / 109 / 127 / 149 bpm and
+    /// the §6.3 hysteresis margin is 4.55 bpm. Default activity is Z1, the
+    /// 62-to-109 band.
+    ///
+    /// Every one of those four moves with this number, the meditation ceiling
+    /// included — it is 34 % of `maxHR`, not a fixed 62.
     ///
     /// R-13 wants every §6.7 constant editable without a rebuild. The settings
     /// screen is M4; until then this is the one place it lives, and it is the

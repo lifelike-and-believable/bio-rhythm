@@ -1,4 +1,4 @@
-# The four pools
+# The pools
 
 Everything the control law does is choose *which pool the next track comes
 from*. The pools decide what the music actually is. That makes this the one
@@ -38,13 +38,32 @@ seeing what the first attempt returns.
 Prompt in terms of **energy and feel**, not genre. The whole design rests on
 energy tiers; a prompt that names a genre gets you a genre, whose energy varies.
 
-### Z1 — Recovery (below 60% maxHR)
+### Z0 — Meditation (below 34% maxHR — 62 bpm at maxHR 182)
+
+> Still, spacious, unhurried music for sitting quietly. No percussion driving
+> it, no builds, nothing that resolves into a groove. Long and slow is fine.
+
+You reach this sitting still, not moving, so it is the only pool where
+"ambient" is the right answer rather than the trap it is in Z1.
+
+**You may not want a fifth playlist for this**, and you do not have to have one.
+Pointing Z0 and Z1 at the same playlist ID is a supported configuration (§8):
+you get the zone, the indicator, and the telemetry, and the music simply does
+not change when you cross 62. Worth starting there and splitting later if the
+Z1 prompt turns out to be too energetic for sitting still.
+
+Sizing is also different: you visit this zone for long stretches at a time or
+not at all, so 10–15 tracks is enough if you do curate it separately.
+
+### Z1 — Recovery (34–60% maxHR — 62 to 109 bpm at maxHR 182)
 
 > Calm, steady tracks for warming up and cooling down. Low intensity but not
 > sleepy — something with a pulse I can walk to. No abrupt drops or big builds.
 
-Warm-up and cool-down, and whatever recovery you do between hard efforts. The
-trap is drifting into ambient: this still has to be listenable while moving.
+The default zone — warm-up, cool-down, walking around, and whatever recovery
+you do between hard efforts. Most of a non-workout day sits here. The trap is
+drifting into ambient: this still has to be listenable while moving, which is
+what separates it from Z0.
 
 ### Z2 — Aerobic (60–70%)
 
@@ -79,7 +98,8 @@ arrive here after climbing through Z2 and Z3, so it is genuinely the top end.
 A 60-minute session at roughly 3.5 minutes per track is about 17 commits, and
 Z2/Z3 will take most of them.
 
-Aim for **30+ tracks in Z2 and Z3**, and 20+ in Z1 and Z4. Below that, §8's
+Aim for **30+ tracks in Z2 and Z3**, 20+ in Z1 and Z4, and 10+ in Z0 if it has
+a playlist of its own. Below that, §8's
 exhaustion path starts clearing the played-set mid-session and you hear repeats.
 It handles that case correctly; it is just not a nice experience.
 
@@ -114,7 +134,7 @@ now — with refresh off, V-6 cannot bite.
 ## Recording the IDs
 
 For each playlist: share → copy link → take the segment between `/playlist/`
-and `?`.
+and `?`. Five pools, though two of them may be the same ID.
 
 ```
 https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
@@ -122,7 +142,7 @@ https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
 ```
 
 Configuration is M4 (R-13 wants all of this editable without a rebuild). Until
-then the four IDs and the fallback pool go wherever M3 first needs them; there
+then the five IDs and the fallback pool go wherever M3 first needs them; there
 is nothing to fill in yet, which is why this document stops at "write them
 down".
 
@@ -140,7 +160,7 @@ rather than something jarring.
 entirely.
 
 If they do not, the fallback is to duplicate each pool into an ordinary
-playlist you own: same four pools, same IDs recorded the same way, created by
+playlist you own: same pools, same IDs recorded the same way, created by
 hand instead. §15 notes this costs nothing in code — pools are ordinary
 playlist reads either way — but it does mean re-duplicating whenever you
 regenerate, which is a second reason to leave auto-refresh off.

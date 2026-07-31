@@ -1,3 +1,5 @@
+import HRDJCore
+
 /// Wire types for the player endpoints in SPEC.md §4.2.
 ///
 /// Field names are post-Feb-2026. `popularity` and `available_markets` are gone

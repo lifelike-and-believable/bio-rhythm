@@ -32,33 +32,59 @@ contained fix:
 - **Shuffle before play** in `SpotifyPlayerClient.play(context:shuffle:)`.
   Ordering is an assumption; confirm it alongside V-4.
 
-## Open design questions raised while building M0
+## Deliberate changes to SPEC.md
+
+CLAUDE.md makes SPEC.md authoritative and says to flag conflicts rather than
+diverge silently. Twice now the right answer was to change the spec. Both are
+listed here so the amendments are reviewable in one place rather than only as
+diffs.
+
+- **2026-07-31 — playback protocols moved from `SpotifyKit` to `HRDJCore`**
+  (§5.2, §5.3). D-1 below has the reasoning. Owner's decision.
+- **2026-07-31 — meditation zone added** (§6.1, and consequentially §6.3, §6.5,
+  §6.7, §7.4, §8, §11.2, R-13). Owner's request. Two things about it are worth
+  knowing before reading the code:
+  - **Its boundary is 34 % of `maxHR`** — 62 bpm at the owner's 182 — so §6.1's
+    "every zone is a percentage of `maxHR`" still holds without exception. It
+    was first written as an absolute 62 bpm on the reasoning that a meditative
+    HR is set by the resting floor rather than the maximum; the owner chose the
+    percentage instead. That reasoning is still true and is recorded in §6.1 as
+    the accepted trade-off, but uniformity bought more than it cost: an
+    absolute 62 crosses the Z2 threshold below `maxHR` 104, so it needed its
+    own validation and a fallback for the misordered case, and all of that
+    disappeared with the change.
+  - **Zone indices shifted.** Z0 sits at index 0 and Z1–Z4 moved up by one, so
+    §6.3's boundary indexing and §6.5's step arithmetic are unchanged. This was
+    free only because no §11.3 telemetry has been recorded yet. Once M2 starts
+    producing traces, renumbering makes sessions incomparable and a future zone
+    would have to be appended instead.
+
+## Open design questions
 
 Recorded here rather than resolved unilaterally, per CLAUDE.md ("if a request
 conflicts with SPEC.md, say so rather than silently diverging").
 
-### D-1. Where do the playback protocols live? — blocks M2
+### D-1. Where do the playback protocols live? — **settled, option 1**
 
-SPEC.md §5.2 puts `Protocols.swift` in `SpotifyKit`. CLAUDE.md non-negotiable
+SPEC.md §5.2 put `Protocols.swift` in `SpotifyKit`. CLAUDE.md non-negotiable
 #2 says `HRDJCore` imports nothing but the standard library. At M2 the
 `Controller` lives in `HRDJCore` and its dependency is
 `PlaybackReading & PlaybackQueueing` — which it cannot name without importing
 `SpotifyKit`. The two rules collide the moment the controller exists.
 
-M0 follows §5.2 literally, because at M0 only `SpotifyKit` and the app targets
-touch the protocols and nothing is foreclosed. Before M2 starts, pick one:
+Three options were on the table: move the protocols into `HRDJCore`; declare
+narrow equivalents there and adapt in the app layer; or let `HRDJCore` import
+`SpotifyKit` (which would also have made the existing dependency circular).
 
-1. **Move the protocols into `HRDJCore`**, and have `SpotifyKit` conform to
-   them. Dependency inversion, keeps `HRDJCore` pure, contradicts §5.2's file
-   layout only.
-2. **Declare narrow equivalents in `HRDJCore`** and adapt in the app layer.
-   Preserves both documents exactly, at the cost of a duplicate protocol pair
-   and an adapter.
-3. **Let `HRDJCore` import `SpotifyKit`.** Cheapest, and gives up
-   non-negotiable #2 — note this would also make `SpotifyKit`'s existing
-   dependency on `HRDJCore` circular.
+**Resolved 2026-07-31 by the owner: option 1.** The protocols and their value
+types now live in `Sources/HRDJCore/Playback.swift`; `SpotifyKit` conforms to
+them rather than declaring them. §5.2 and §5.3 were amended to match — this is
+the one place the spec was changed rather than followed, and it was changed
+deliberately. `SpotifyPlayerClient` still conforms to all three, and the
+narrow-composition injection in `SpotifyStack` is unchanged, so R-2 and the
+§5.3 mechanism are untouched.
 
-Option 1 looks right, but it is the owner's call.
+M2 is no longer blocked on this.
 
 ### D-2. Invariant I6 cannot be tested the way §5.3 describes
 
@@ -84,3 +110,21 @@ unilaterally, because it introduces a type §5.2 does not mention.
 module that imports `HRDJCore` must write `HRDJCore.Clock` or hit an ambiguity
 error. It is a papercut, not a problem, and the spec's name was kept. Renaming
 to `MonotonicClock` would remove it if the friction proves annoying.
+
+### D-4. Does one hysteresis margin suit both ends of the range? — M2 tuning
+
+The meditation zone (§6.1) put a threshold at 34 % of `maxHR` — 62 bpm at 182,
+far below the others. `MARGIN` is 2.5 % of `maxHR` and therefore a fixed bpm
+figure — 4.55 at maxHR 182 — so it is proportionally much wider at the Z0/Z1
+boundary than at Z3/Z4. In practice you leave meditation at ≥ 66.6 bpm and
+re-enter below 57.5.
+
+That is defensible and probably right: sitting still, a two-beat wobble should
+not change what is playing, and the pool either side is very different. But it
+is a guess, and it is the sort of guess §6.7 says to settle with logs rather
+than argument. Left at one margin for now. Look at the `zone_change` records
+around 62 bpm in the first M2 traces before deciding whether a per-boundary
+margin is worth the extra constant.
+
+Not blocking: `ZoneModel` does not exist yet, so nothing has been built on the
+answer.

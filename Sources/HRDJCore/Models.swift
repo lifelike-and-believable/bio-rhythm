@@ -1,17 +1,28 @@
 // Standard library only. See CLAUDE.md §2.
 
-/// The four energy tiers. SPEC.md §6.1.
+/// The five energy tiers. SPEC.md §6.1.
 ///
 /// The raw value is the zone index used throughout the control law: boundaries
 /// are indexed by it, and the step limit (§6.5) arithmetic operates on it.
+/// Ascending raw values must stay ascending in effort — several rules depend on
+/// that ordering, not merely on the cases being distinct.
+///
+/// **`meditation` is an addition to §6.1's original four.** Its boundary is a
+/// fraction of `maxHR` like every other, so nothing here is special-cased.
+/// Adding it shifted the raw values of Z1–Z4 up by one, which is safe only
+/// because no telemetry has been recorded yet; once §11.3 logs exist, a shift
+/// like this makes old sessions incomparable and the enum should gain cases
+/// rather than renumber them.
 public enum Zone: Int, CaseIterable, Hashable, Sendable, Comparable, Codable {
-    case z1 = 0
-    case z2 = 1
-    case z3 = 2
-    case z4 = 3
+    case meditation = 0
+    case z1 = 1
+    case z2 = 2
+    case z3 = 3
+    case z4 = 4
 
     public var label: String {
         switch self {
+        case .meditation: "Meditation"
         case .z1: "Recovery"
         case .z2: "Aerobic"
         case .z3: "Tempo"
@@ -66,8 +77,15 @@ public struct TrackRef: Hashable, Sendable, Codable {
     }
 }
 
-/// One of the four configured pools. SPEC.md §8.
+/// One of the configured pools. SPEC.md §8.
+///
+/// One per zone, so the meditation zone brings `Z0` with it. Nothing here says
+/// `Z0` must point at a *distinct* Spotify playlist — the mapping from pool to
+/// playlist ID is configuration (R-13), and pointing `Z0` and `Z1` at the same
+/// playlist is a legitimate way to have the zone without curating a fifth pool.
+/// `docs/pools.md` covers the trade-off.
 public enum PoolID: String, CaseIterable, Hashable, Sendable, Codable {
+    case z0 = "Z0"
     case z1 = "Z1"
     case z2 = "Z2"
     case z3 = "Z3"
@@ -75,6 +93,7 @@ public enum PoolID: String, CaseIterable, Hashable, Sendable, Codable {
 
     public var zone: Zone {
         switch self {
+        case .z0: .meditation
         case .z1: .z1
         case .z2: .z2
         case .z3: .z3
@@ -86,6 +105,7 @@ public enum PoolID: String, CaseIterable, Hashable, Sendable, Codable {
 extension Zone {
     public var poolID: PoolID {
         switch self {
+        case .meditation: .z0
         case .z1: .z1
         case .z2: .z2
         case .z3: .z3
