@@ -194,3 +194,30 @@ the current zone, so with `MAX_STEP = 1` the clamp can never fire. It is
 implemented anyway as the enforcement point for I5 (§7.2), which is a
 guarantee the product rests on and should not depend on a property of a
 different function that a later edit might quietly remove.
+
+### D-6. `SHORT_TRACK_THRESHOLD` read literally contradicts I2 — resolved in `CommitScheduler`
+
+§6.7: "`SHORT_TRACK_THRESHOLD` | 25 s remaining | Commit immediately instead of
+scheduling." §7.2 I2: "No `enqueue` before `estimatedEnd - COMMIT_OPEN`", and
+`COMMIT_OPEN` is 20 s. For a track first seen with 21–25 s left, those two
+sentences ask for opposite things.
+
+**Resolved by waking early rather than committing early.** I2 is kept exactly
+as written — the scheduler will not attempt anything above 20 s remaining — and
+`SHORT_TRACK_THRESHOLD` instead governs *when the controller next looks*.
+
+That is not a workaround; it is the hazard the constant is actually about.
+`HEARTBEAT_POLL` is 30 s, so a track first seen with 23 s left would not be
+looked at again until long after its deadline had passed. Waking 3 s later, at
+the moment the window opens, fixes that completely. Committing 5 s early fixes
+nothing that was broken, and costs an invariant that has a test and that G2
+depends on.
+
+`CommitScheduler.nextEvaluation(remaining:at:)` implements it as
+`min(timeUntilNextSlot, HEARTBEAT_POLL)`, which subsumes the threshold entirely
+— there is no branch on 25 s anywhere in the logic. `startedShort` is recorded
+on the scheduler for the §11.3 log only, so M2 traces can still distinguish
+these tracks when the constants get tuned.
+
+If the literal reading was intended, the change is one line and I2's test has
+to change with it. It should not change quietly.
