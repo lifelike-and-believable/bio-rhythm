@@ -2,11 +2,16 @@ import SwiftUI
 import HRDJCore
 import SpotifyKit
 
-/// SPEC.md §11.2 — two horizontally-paged screens, neither of which scrolls.
+/// SPEC.md §11.2 — two horizontally-paged screens.
 ///
-/// The scroll had to go so the Digital Crown could be the zone lock; it cannot
-/// be both that and the scroll gesture. Horizontal paging is what frees it —
-/// *vertical* paging would consume the Crown in turn.
+/// **The glance page does not scroll**, so the Digital Crown can be the zone
+/// lock; it cannot be both that and the scroll gesture. Horizontal paging is
+/// what frees it — *vertical* paging would consume the Crown in turn.
+///
+/// **The controls page does scroll.** Neither reason for the rule applies
+/// there: the Crown has no job on it, and nobody reads it mid-effort. It also
+/// has to, since three buttons and a diagnostics block do not fit a 42 mm
+/// screen.
 ///
 /// The reorganisation earns its place beyond the Crown: every action now has a
 /// labelled home on the controls page, which retires the two gestures nobody
