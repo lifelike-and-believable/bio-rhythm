@@ -9,7 +9,9 @@ tiers. Closing the loop between the two removes the fiddling with a phone
 mid-effort. The system never interrupts a track — it decides what plays *next*,
 committing to the choice in the last twenty seconds of the current one.
 
-Single user, sideloaded, not for distribution.
+Current scope: single user, sideloaded, not for distribution. `SPEC.md`
+records a later commercial/App Store phase, but only behind the M2/M3
+verification gates that keep the controller safe.
 
 - **[`SPEC.md`](SPEC.md)** — requirements and design. Authoritative.
 - **[`CLAUDE.md`](CLAUDE.md)** — working rules for anyone, human or agent, changing this repo.
