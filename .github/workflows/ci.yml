@@ -14,11 +14,19 @@ on:
       - "**/*.md"
       - "docs/**"
       - "LICENSE"
+  # Deliberately no paths-ignore on pull_request. It was there, and it was
+  # wrong in a way that took a near-miss to notice.
+  #
+  # `paths-ignore` skips the run rather than passing it, so a docs-only commit
+  # pushed on top of a code commit leaves the PR head with *no checks at all* —
+  # and `cancel-in-progress` below had already killed the code commit's run.
+  # The result reads as "nothing failed" while nothing was built. An absent
+  # check is much easier to mistake for a green one than a red check is.
+  #
+  # On a public repo the runner minutes are free, and the whole workflow is
+  # under two minutes. Building a documentation change is cheap; believing an
+  # unbuilt PR is green is not.
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "LICENSE"
   workflow_dispatch:
 
 # Least privilege: this job only reads the checkout. Set here rather than per
