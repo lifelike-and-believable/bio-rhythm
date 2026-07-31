@@ -40,7 +40,7 @@ The opportunity: heart rate is already measured continuously and accurately on t
 | Deriving energy from audio analysis | Prompted Playlists supply the energy grouping. No MIR pipeline, no per-track tagging, no third-party audio API. |
 | Programmatic playlist generation | No API exists for Prompted Playlists, and `/recommendations` is withdrawn. Pool creation is a manual, occasional, in-app task. |
 | Crossfade, beat-matching, gapless, any DSP | The system chooses *what plays next*. It does not touch audio. |
-| Multi-user, accounts, sharing, App Store distribution | Single-user personal build, sideloaded via Xcode. |
+| Multi-user, accounts, sharing, App Store distribution | Out of scope for M0–M4. The current product is a single-user personal build, sideloaded via Xcode. A later commercial phase is specified separately in §16 and must not weaken the invariants below. |
 | Apple Music, local library, or any non-Spotify source | One backend. Revisit only if Spotify access degrades further. |
 | Recording rich workout metrics (pace, GPS, calories) | The workout session exists to obtain live HR and background runtime. It is not a training log. See R-14 for the one exception. |
 | Reacting to HRV, cadence, power, or elevation | HR only. Additional signals are a later question. |
@@ -51,7 +51,7 @@ The opportunity: heart rate is already measured continuously and accurately on t
 
 - Spotify **Premium** is required. Playback control has always required it, and as of Feb 2026 a Development Mode app additionally requires the *app owner* to hold active Premium. If the subscription lapses the app stops working and resumes on resubscribe.
 - Development Mode limits for newly created apps: **1 client ID per developer, 5 users per app.** Adequate here. Do not design anything that assumes more.
-- Extended Quota Mode is unavailable in practice (it now requires large MAU) and is not a fallback.
+- Extended Quota Mode is unavailable in practice for the current personal build (it requires large MAU) and is not a fallback for M0–M4. A future commercial phase may pursue it only as a business/quota gate (§16), not as an authentication architecture change.
 
 ### 4.2 Player endpoints (all confirmed available, Feb 2026 changelog)
 
@@ -524,6 +524,8 @@ Record answers in `/docs/verification.md` with dates. Several are behaviour that
 
 **M4 — Ergonomics.** Override, manual zone lock, blocklist, session summary, configuration UI, optional workout saving.
 
+**M5 — Commercial readiness, if the product direction changes.** App Store/TestFlight hardening, user-facing setup and repair flows, privacy disclosures, Spotify policy review, and Extended Quota Mode submission materials. M5 begins only after M3's exit bar is met and M4's configuration surface exists; it does not replace any control-law verification.
+
 Do not compress M2. It is the only milestone that produces the data needed to make the rest correct.
 
 ---
@@ -552,10 +554,26 @@ For randomized HR traces and randomized failure injection, assert invariants I1�
 - DTO decoding against **captured real response fixtures**, post-Feb-2026 shapes. Do not hand-write expected JSON from memory; capture it with `curl` and commit it.
 - Token refresh: concurrent 401s trigger exactly one refresh.
 - Rate limiter honours `Retry-After`.
+- Playlist validation covers metadata and `/v1/playlists/{id}/items`, including empty, unreadable, private, non-owned, 401, 403, and 429 responses. Do not add `/tracks`.
 
-### 14.4 Manual / on-device
+### 14.4 Configuration, storage, and onboarding
+
+- Configuration encoding/decoding/defaults/migration, with an explicit schema version.
+- `maxHR` validation and derived boundary assertions, including the Z0/Z1 `MEDITATION_CEILING` fraction.
+- Five pool IDs plus fallback pool, with Z0 and Z1 allowed to share the same playlist ID.
+- Local storage failure/recovery. The refresh token stays in Keychain; user configuration lives in the app container (`UserDefaults` or plist); playlist contents are never persisted as ground truth.
+- iOS companion transfer of onboarding payloads, watch persistence across restart, re-onboarding replacement of stale credentials, and reset flows for configuration and Spotify account.
+- A dependency guard that `HRDJCore` imports only the standard library.
+
+### 14.5 Manual / on-device
 
 A checklist in `/docs/field-test.md` covering: phone off, airplane mode mid-session, Spotify app force-quit mid-session, manual skip, pause and resume, another workout app started mid-session, watch battery under 10%, and a full session in the shower-cold-hands sensor-dropout case.
+
+For a commercial phase, extend the checklist with LTE-only and Wi-Fi-only sessions, app restart after onboarding, unreadable or empty configured playlists, re-authorization after `invalid_grant`, HealthKit permission denial, App Store privacy strings, and reset-account/reset-configuration flows.
+
+### 14.6 Commercial beta metrics
+
+If M5 is pursued, TestFlight/beta validation must track onboarding completion, playlist validation failure rate, session completion rate, commit miss rate, battery impact, and the R-2 bar: zero automatic mid-track interruptions.
 
 ---
 
@@ -577,3 +595,53 @@ A checklist in `/docs/field-test.md` covering: phone off, airplane mode mid-sess
 - **Trailing mean over instantaneous HR.** Adds ~20 s of lag, removes essentially all noise sensitivity. The actuation rate is already low enough that the lag is free.
 - **Late commit over playlist-tail rewriting.** Rewriting a scratch playlist's tail would make decisions revocable, but relies on undocumented client behaviour around mid-playback playlist edits. Late commit uses only documented semantics. Revisit as a v2 if the miss rate proves annoying.
 - **Watch-only runtime, phone-only onboarding.** `ASWebAuthenticationSession` does not exist on watchOS. A one-time phone step is a smaller cost than any on-watch code-entry scheme.
+
+---
+
+## 16. Future commercial / App Store phase
+
+This section is a scope amendment, not permission to skip M0–M4. The repository still targets a single-user sideloaded build until M3 has proven actuation and M4 has supplied the configuration UI.
+
+### 16.1 Product boundary
+
+- No app-level account system unless Spotify approval or App Store review makes one unavoidable.
+- No backend server for ordinary operation. The watch uses Spotify OAuth/PKCE, local Keychain tokens, local configuration, and direct Spotify Web API calls.
+- One Spotify Premium account per watch. The product should explain this clearly rather than hide it behind an account abstraction.
+- Preserve the hard invariants: standalone watch runtime, local-only user configuration, no automatic pause/skip/seek/previous, no HealthKit/network/UI dependencies in `HRDJCore`, and no speculative tuning of §6.7 constants.
+
+### 16.2 User configuration surface
+
+Onboarding must become more than Spotify authorization:
+
+1. Spotify connection status and re-authorization entry point.
+2. Explicit `maxHR` entry; never derive it from age.
+3. Five playlist IDs, one for each of Z0–Z4. Z0 and Z1 may point at the same ID.
+4. Fallback pool choice, defaulting to Z2 or Z3.
+
+The refresh token remains Keychain-only. User configuration is stored locally in the app container (`UserDefaults` or plist) with a schema version and migration tests. Playlist contents are fetched fresh at session start and are never treated as persisted ground truth.
+
+Validate playlist IDs with the endpoints in §4.3: metadata plus `/v1/playlists/{id}/items`. Empty, unreadable, private, or non-owned playlists must produce clear repair instructions before a workout starts.
+
+### 16.3 Repair and settings flows
+
+- `invalid_grant` clears tokens and enters a re-onboarding state.
+- Settings can edit `maxHR`, all pool IDs, fallback pool, and later the R-13 tuning surface once logs justify exposing it.
+- Reset configuration and reset Spotify account are distinct actions.
+- If V-6 shows Prompted Playlist IDs rotate on refresh, settings needs a repair flow that detects and re-points stale pool IDs.
+
+### 16.4 Commercial hardening
+
+- Prepare App Store privacy disclosures for HealthKit access, Spotify account access, local telemetry, and the absence of backend collection.
+- Keep HealthKit purpose strings aligned with actual behaviour, especially optional workout saving (R-14).
+- Review Spotify Developer Policy compliance: scopes, playback control, branding, quota, and user consent.
+- Prepare Extended Quota Mode materials only after there is evidence to submit: demo video, screenshots, scope justification, privacy posture, and TestFlight or pilot usage data.
+
+### 16.5 Release gate
+
+Do not submit a commercial build until all of the following are true:
+
+- V-1 through V-6 are recorded in `docs/verification.md`.
+- M2 telemetry has been collected and §6.7 has either been tuned from logs or explicitly left unchanged with evidence.
+- M3 has met its exit criterion: 10 consecutive sessions with zero mid-track interruptions and commit miss rate under 5%.
+- M4 configuration and repair flows exist.
+- App Store privacy requirements and Spotify quota/policy requirements are satisfied.

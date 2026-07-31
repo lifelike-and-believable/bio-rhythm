@@ -24,8 +24,10 @@ Everything here is done once. Nothing in it is needed during a workout.
    Mode allows 5 users and you need 1.
 6. Copy the Client ID.
 
-Do not request Extended Quota Mode. It requires large MAU now and is not a
-fallback (§4.1).
+Do not request Extended Quota Mode for this personal build. It requires large
+MAU now and is not a fallback for M0–M4 (§4.1). If the product later moves
+toward App Store distribution, SPEC.md §16 treats quota approval as a separate
+commercial gate, not as an onboarding/auth change.
 
 ## 2. Local configuration
 
