@@ -96,9 +96,9 @@ contained fix:
 ## Deliberate changes to SPEC.md
 
 CLAUDE.md makes SPEC.md authoritative and says to flag conflicts rather than
-diverge silently. Twice now the right answer was to change the spec. Both are
-listed here so the amendments are reviewable in one place rather than only as
-diffs.
+diverge silently. Three times now the right answer was to change the spec. All
+are listed here so the amendments are reviewable in one place rather than only
+as diffs.
 
 - **2026-07-31 — playback protocols moved from `SpotifyKit` to `HRDJCore`**
   (§5.2, §5.3). D-1 below has the reasoning. Owner's decision.
@@ -119,6 +119,26 @@ diffs.
     free only because no §11.3 telemetry has been recorded yet. Once M2 starts
     producing traces, renumbering makes sessions incomparable and a future zone
     would have to be appended instead.
+
+- **2026-07-31 — §11.2 rewritten after a UX pass.** Owner's decisions
+  throughout. Four parts, of which only the last two actually diverge:
+  - **Two horizontally-paged screens, neither scrolling**, replacing "one
+    screen". Forced by the Digital Crown: it cannot be both the scroll gesture
+    and the zone lock. Freeing it retires the two undiscoverable gestures as a
+    side effect, because the controls page gives every action a label. Costs one
+    swipe to reach `End workout`, which is the idiom Apple's Workout app already
+    uses.
+  - **The override indicator is a state of the zone row**, not an element of its
+    own — outlined capsule, lock glyph, and the row is the "resume auto" button.
+    §6.6 asks for an unambiguous indicator; it does not ask for a dedicated row,
+    and on a watch a row meaningful 5 % of the time is expensive.
+  - **"Next committed track" merged into a decision line.** As a field of its
+    own it was empty for roughly 90 % of every track. Merged with the status
+    text it always says something.
+  - **The countdown is coarse**, four steps rather than 180. §11.2 asks for a
+    countdown two lines above forbidding continuously running animation. This
+    reads the intent rather than the letter, and is the clearest divergence of
+    the four. It turned out to be Always-On-native as a side effect.
 
 ## Open design questions
 
@@ -249,3 +269,113 @@ these tracks when the constants get tuned.
 
 If the literal reading was intended, the change is one line and I2's test has
 to change with it. It should not change quietly.
+
+### D-7. R-10 skip detection has no implementation, and its threshold decides how often the override is wrong
+
+§6.6 lists a detected manual skip as an override trigger, and §11.2 now labels it `Skipped` on screen. Nothing detects one.
+
+`ZoneModel` holds the override, `Controller.registerManualInput` sets it, and
+`TrackClock` reports track changes and seeks — but no rule anywhere turns "the
+track changed" into "the owner skipped". §6.6's most common trigger is,
+at present, unreachable except through a manual zone lock.
+
+The rule is not hard to state: a `.started` observation arriving while
+`remaining` was still comfortably positive is a skip. **"Comfortably" is the
+whole problem.** Set it too tight and ordinary §7.1 estimate drift near a
+boundary reads as a skip, suspending auto-control for three minutes for no
+reason the owner can see. Set it too loose and real skips go unnoticed, which
+is the failure R-10 exists to prevent.
+
+Deliberately not picked yet. The distribution of `estimatedEndDriftMs` in the
+first M2 traces is exactly the evidence needed, and guessing before those exist
+is the thing CLAUDE.md non-negotiable #4 is about. Until then the label on the
+zone row is the mitigation: an override the owner did not ask for says so, and
+the row saying it is the button that clears it.
+
+### On Always-On, and one thing that cannot be fixed
+
+§11.2 now specifies a reduced-luminance variant. Most of it is ordinary — drop
+now-playing, promote the zone name over the capsules, return to the glance page
+when the wrist drops.
+
+One property is worth stating separately because it will look like a bug:
+
+**Always-On staleness is a rendering property, and §6.2's stale detection
+cannot see it.** During Always-On the workout session keeps delivering samples,
+so `HRWindow` reports no gap and the stale treatment never fires — but the
+pixels on screen may be a minute old. Nothing distinguishes an Always-On
+snapshot from a live reading, and no API reports when the system last drew the
+app.
+
+There is no fix, only the knowledge. Accepted and recorded because "why did it
+say 142 when I was clearly at 170" is exactly the kind of thing that erodes
+trust in a system whose entire job is reacting to heart rate — and the answer
+is not that the control law was wrong, it is that the display was old. **V-8**
+measures the actual refresh budget and decides whether the decision line
+belongs in Always-On at all.
+
+### D-8. `locationType` — **settled: set it honestly, including `.outdoor`**
+
+§10 pinned `locationType = .unknown`. That was free when the workout session
+existed only to obtain heart rate and background runtime, and stopped being
+free once R-14 made the saved workout a record the owner keeps: `.unknown`
+gets a conservative energy estimate for exactly the activities most likely to
+be used.
+
+What made it non-obvious was battery. §11.2 said "battery matters more than
+polish", and declaring `.outdoor` invites the system to use GPS for distance.
+
+**Resolved 2026-07-31 by the owner: the battery bar is parity with other
+workout apps, not minimalism.** §11.2 now says so directly. Spending roughly
+what Apple's Workout app spends, to produce a workout record about as good as
+Apple's Workout app produces, is the trade this project should make — and the
+earlier framing would have declined it by default.
+
+**Three tiers, only two of which are in scope.** Worth separating, because "add
+GPS" covers wildly different amounts of work:
+
+1. **`locationType` chosen per activity.** One enum on the configuration, no
+   new permissions, no new code paths. In §11.2's idle-screen list, combined
+   with activity type so it is a single choice rather than two.
+2. **Location authorisation, for GPS-derived distance.** Small — a usage string
+   and a prompt — but it adds a permission to onboarding, which is a real UX
+   cost paid once. In scope under the parity bar.
+3. **`HKWorkoutRouteBuilder`, for the route map in Fitness.** **Deferred, not
+   rejected.** CoreLocation plumbing, continuous location collection, and a
+   route object to manage — and §3 excludes GPS routes as a non-goal. Tier 1
+   improves the estimate; only tier 3 draws the map.
+
+**On tier 3, 2026-07-31:** the owner does not want a map *drawn in this app*,
+and does want the option kept open for the workout to carry its route into
+Fitness. Those are compatible — §3's non-goal is about bio-rhythm not becoming
+a training log with its own map UI, not about the saved `HKWorkout` being
+poorer than it needs to be, which is the same distinction §10 already draws for
+energy data.
+
+So the shape if it is picked up: attach an `HKWorkoutRoute` to the saved
+workout under R-14, and render nothing. Fitness draws the map; this app never
+does. That keeps every pixel of §11.2 unchanged and stays inside the parity
+bar, since route collection is what any outdoor workout app already does.
+
+Not built. Recorded so that picking it up later is an implementation task
+rather than a fresh argument about §3.
+
+### Product framing: the single-workout-session constraint is accepted
+
+**2026-07-31, settled by the owner.** §15 lists "cannot coexist with another
+workout app" as a known risk resolved as a product decision, and V-3 names
+"product framing" among the things it blocks. That half is now answered: the
+owner does not track personal records and wants heart rate and ring credit,
+both of which R-14 provides.
+
+Two consequences worth carrying forward:
+
+- **R-14 is no longer a P2 nicety.** It is the entire mitigation for a
+  structural platform constraint, and the thing that makes bio-rhythm
+  acceptable as a replacement for the Workout app rather than an alternative to
+  it. Its priority should be reconsidered against that.
+- **Activity type moved out of M4** for the same reason (§11.2, idle screen).
+  Configuration can wait; a year of sessions labelled `Other` cannot.
+
+V-3 itself stays open — whether `startActivity` actually fails while another
+app holds a session is still unmeasured, as is V-7's more dangerous reverse.

@@ -347,6 +347,14 @@ IDLE ──start──▶ AUTHORIZING ──▶ FETCHING_POOLS ──▶ ACQUIRI
 ```
 
 - `FETCHING_POOLS`: fetch every configured pool (§4.3), fresh, every session. Fail fast with a clear message if a pool is empty or unreadable. Two pools may be configured with the same playlist ID — Z0 and Z1 is the expected case (§8) — and it should be fetched once, not twice.
+
+  **Pre-warm on the idle screen.** The fetch begins when the idle screen
+  appears rather than when Start is pressed, so most of the latency hides
+  behind choosing an activity type. This does not weaken §4.5: contents are
+  still fetched fresh, still never persisted, still discarded at session end —
+  only the moment moves a few seconds earlier. Refetch if the pre-warmed copy
+  is older than `POOL_PREWARM_TTL` when Start is pressed. The cost is fetching
+  pools for sessions that are then not started.
 - `ACQUIRING_DEVICE`: `GET /me/player/devices`, select the watch, `PUT /me/player` to transfer, `PUT /me/player/shuffle`, `PUT /me/player/play` with fallback context.
 - `DEGRADED`: entered after `3` consecutive network failures. HR sampling and logging continue; commits are suspended; the UI shows it. Exponential backoff retry (2, 4, 8, 16, 30 s, capped) probing `GET /me/player`. Return to `RUNNING` on success.
 - `TEARDOWN`: end the workout session, flush telemetry, optionally save the workout (R-14). Do **not** pause playback on teardown unless the owner asks.
@@ -404,9 +412,11 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 ## 10. HealthKit integration
 
-- `HKWorkoutConfiguration`: `activityType` configurable, default `.other`; `locationType = .unknown`.
+- `HKWorkoutConfiguration`: `activityType` and `locationType` are both chosen on the idle screen (§11.2), which offers them as a single combined choice. `.other` / `.unknown` is the fallback, not the default for everything.
+- **Location type is set honestly**, including `.outdoor`. It materially improves the system's energy estimate for running, cycling and walking, which is the ring credit R-14 exists to provide. Accepting whatever GPS the system then uses for distance is a deliberate trade — see the battery bar below.
 - Authorization: read `HKQuantityType(.heartRate)`; share `HKWorkoutType` only if R-14 is enabled.
 - Use `HKLiveWorkoutBuilder` with `HKLiveWorkoutDataSource`. Read HR from `workoutBuilder(_:didCollectDataFor:)` via `statistics(for:)?.mostRecentQuantity()`, converted to `count/min`.
+- **Collect the data source's default types for the activity, not heart rate alone.** §3 excludes pace, GPS and calories as things this app *surfaces or reasons about*; it does not ask for a deliberately impoverished workout record. With R-14 enabled the saved session should carry the energy data the watch would otherwise have produced, or the Move ring falls back to an ambient estimate that is worse than the one a workout session affords. The control law still reads nothing but heart rate.
 - Expect roughly 1 Hz during activity, degrading with poor contact. The design already tolerates gaps (§6.2).
 - The active workout session is what grants extended background runtime. Do **not** additionally request `WKExtendedRuntimeSession`.
 - Handle `HKWorkoutSessionState` transitions including `.paused` (auto-pause) and interruption. A paused session suspends commits.
@@ -438,16 +448,165 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 ### 11.2 Watch UI
 
-Minimum viable, glanceable, one screen:
+**Two horizontally-paged screens, neither of which scrolls.** A glance page that is read-only, and a controls page holding every action.
 
-- Current HR, large.
-- Current zone, with every zone shown as a discrete indicator (not a continuous gauge — the system is discrete and the UI should not imply otherwise). Five steps as of §6.1's meditation zone.
-- Now playing: title and artist, truncated.
-- Next committed track, or "deciding" during `OBSERVING`, or a warning glyph in `MISSED` / `DEGRADED`.
-- Override indicator with countdown when active, plus "resume auto".
-- Long-press: blocklist current track. Digital Crown: manual zone lock.
+No animations that run continuously — a workout screen should not carry moving decoration, and it is unreadable at a glance if it does.
 
-No animations that run continuously. Battery matters more than polish here.
+**The battery bar is parity, not minimalism.** This app should cost about what any other workout app costs for the same session, and no effort is owed beyond that. Earlier drafts treated battery as a reason to decline features; it is not. If a capability makes the workout record better and costs roughly what Apple's own Workout app costs for it — GPS-derived distance being the case in point — take it. What the rule still forbids is spending battery on decoration.
+
+#### Why two pages rather than one scrolling screen
+
+The Digital Crown is the scroll gesture. §11.2 also wants it for the manual zone lock, and it cannot be both. Removing the scroll frees it — and horizontal paging is the right way to do that, because *vertical* paging consumes the Crown in turn.
+
+The reorganisation earns its place beyond the Crown. It gives every action a labelled home on the controls page, which retires the two gestures nobody can discover: long-press to blocklist, and an unlabelled swipe for "resume auto". Both remain available as shortcuts; neither is the only route any more.
+
+The cost is that ending a workout is one swipe away rather than immediate. Accepted because it is exactly the idiom Apple's own Workout app uses, so the muscle memory already exists.
+
+#### The glance page
+
+Everything needed mid-effort and nothing else. Read-only, which is also what makes it the right thing to show in Always-On.
+
+- **Current HR, large.** The anchor.
+- **The zone row** — every zone as a discrete indicator, never a continuous gauge; the system is discrete and the UI must not imply otherwise. Five steps as of §6.1's meditation zone. Carries the override state (below).
+- **The decision line.** One line, always meaningful: `Deciding…` during `OBSERVING`, `Next: <title>` once committed, `Missed — falling back` in `MISSED`, `Offline — holding` in `DEGRADED`, `No samples — holding zone` during an HR gap.
+- **Now playing:** title and artist, truncated.
+
+No navigation title. The owner knows which app they are in, and it costs roughly 30 pt of the scarcest space on the device.
+
+The decision line replaces two elements an earlier draft listed separately — "next committed track / deciding / warning glyph" and the HR-window diagnostics. Merged, it is always saying something; separate, the committed-track field was empty for about 90 % of every track. Window mean and sample count are diagnostics and belong on the controls page.
+
+#### The controls page
+
+`End workout` · `Resume auto` · `Block this track`, plus window mean, sample count and commit count as diagnostics.
+
+#### The idle screen
+
+Three things, in priority order: **readiness**, **activity type**, **Start**.
+
+Readiness is not decoration. Today the button offers to start a session whether
+or not a token exists, whether or not Spotify is reachable, and whether or not
+the pools resolve — pressing it and finding out is the wrong order.
+
+**Activity type is chosen here**, from a curated list — not the full
+`HKWorkoutActivityType` catalogue. The enum has no public display-name API, so
+every entry offered is a hand-written mapping that has to be maintained and can
+be subtly wrong; ~70 of them is a lot of surface for a single-user app, and
+most of it would never be picked.
+
+Each entry carries its own location variants, so the choice is one decision
+rather than two:
+
+| Activity | Offered as |
+|---|---|
+| Running | Outdoor · Indoor |
+| Walking | Outdoor · Indoor |
+| Cycling | Outdoor · Indoor |
+| Hiking | Outdoor |
+| Rowing | Indoor · Outdoor |
+| Elliptical | Indoor |
+| Stair Stepper | Indoor |
+| Traditional Strength Training | Indoor |
+| Functional Strength Training | Indoor |
+| High Intensity Interval Training | Indoor · Outdoor |
+| Yoga | Indoor |
+| Mind & Body | Indoor |
+| Other | — |
+
+`Mind & Body` is the one to keep even though it looks like padding: it is the
+activity for the Z0 meditation zone, which otherwise has no sensible label.
+
+Adding an entry later is one row and one display string. Swimming is
+deliberately absent — it needs `HKWorkoutSwimmingLocationType` rather than the
+ordinary indoor/outdoor pair, and headphones underwater are their own problem.
+
+This is the one piece of R-13's configuration surface pulled forward out of M4,
+because R-14 makes it load-bearing: a year of sessions labelled `Other` is a
+worse record than the Workout app would have produced, which undercuts the
+reason for saving them at all.
+
+The Digital Crown scrolls that picker. That does not conflict with the zone
+lock — the Crown is the zone lock on the *glance page*, and the picker is a
+different screen.
+
+No last-session summary here. It is the natural place for one, and it is also
+what would turn a two-line screen back into a scrolling one.
+
+#### Starting a session is visible
+
+§7.4's startup does real work: refresh a token, fetch five paginated playlists,
+list devices, transfer playback, set shuffle, start the context. On a watch over
+LTE that is plausibly five to fifteen seconds, and "Starting…" is not an
+adequate account of it.
+
+Each state names itself, because each fails differently:
+
+| State | Shown | On failure |
+|---|---|---|
+| `AUTHORIZING` | `Connecting…` | Re-onboard from the phone |
+| `FETCHING_POOLS` | `Loading pools 3/5` | **Name the pool.** §7.4 fails fast; the message must say which one was empty or unreadable |
+| `ACQUIRING_DEVICE` | `Finding your watch…` | The watch is not a Spotify device — open Spotify on it |
+| starting playback | `Starting playback…` | Retry |
+
+`3/5` earns its specificity: it is the slow step, it is five separate paginated
+fetches, and a failure in one of them is a question about one playlist.
+
+#### The zone row and the override indicator
+
+§6.6 requires an unambiguous override indicator with remaining time and a "resume auto" action. It is **not** a separate element:
+
+- The thing being overridden *is* the zone, so the zone row shows it: the active capsule outlined rather than filled, and a lock glyph beside the label.
+- **The row is the button.** Tapping it clears the hold. Nothing else on screen changes size or position when an override begins or ends.
+
+Screen space is the scarcest resource on a watch. An element meaningful for roughly 5 % of a session is expensive as a permanent row and jarring as one that appears and pushes everything below it down. Restyling a row that is always present costs nothing and cannot be missed, which is what "unambiguous" asks for.
+
+#### The override indicator is a state of the zone row, not a row of its own
+
+§6.6 requires an unambiguous override indicator with remaining time and a "resume auto" action. It is **not** a separate element:
+
+- The thing being overridden *is* the zone, so the zone row shows it: the active capsule outlined rather than filled, and a lock glyph beside the label.
+- **The row is the button.** Tapping it clears the hold. Nothing else on screen changes size or position when an override begins or ends.
+
+Screen space is the scarcest resource on a watch. An element meaningful for roughly 5 % of a session is expensive as a permanent row and jarring as one that appears and pushes everything below it down. Restyling a row that is always present costs nothing and cannot be missed, which is what "unambiguous" asks for.
+
+**The three causes get three labels.** §6.6 lists a detected skip, a manual zone change, and a pause/resume cycle, and holds the zone identically for all three. They do not mean the same thing to the person reading the screen:
+
+| Cause | Label | Why it differs |
+|---|---|---|
+| Manual zone change | `Locked` | Deliberate. The owner knows why it is on and does not need telling. |
+| Pause / resume | `Paused` | Inferred from an act that may carry no intent at all. |
+| Detected skip (R-10) | `Skipped` | **A guess, and the one that can be wrong.** |
+
+A track ends early when it was skipped, but also when the §7.1 estimate drifted, when Spotify moved on by itself, or when something else took playback. A false positive suspends auto-control for three minutes with no visible cause. One word of provenance is the whole fix: if the row says `Skipped` and the owner did not skip, the system has just explained its own mistake — and the row saying it is already the button that undoes it.
+
+**The countdown is coarse:** `~3 min`, `~2 min`, `~1 min`, `under a minute`. Four updates rather than 180.
+
+This is a deliberate reading of "with countdown" against "no animations that run continuously" two lines above. The battery argument alone is weak — heart rate already redraws at roughly 1 Hz while the screen is active — but a ticking second hand pulls the eye during effort, and the only question it is asked is "is this nearly over?", which does not need second precision.
+
+#### Manual zone lock, and why the Crown is focus-gated
+
+An always-live Crown that pins a zone and starts a three-minute hold is a hazard: watches get knocked and sleeves catch. watchOS supplies the safety for free — `digitalCrownRotation` delivers input only to a **focused** view.
+
+1. **Tap the zone row.** It takes focus; the capsules brighten.
+2. **Rotate.** The highlighted zone moves.
+3. **Stop.** The zone locks, the override begins, the row restyles to `Locked`.
+4. **Tap again**, at any point, to resume auto.
+
+Tap therefore means one consistent thing throughout: *take or release control of the zone.* An idle Crown does nothing at all.
+
+Note that until R-10 skip detection exists (D-7), this is the **only** way to trigger an override, and therefore the only route to the indicator above.
+
+#### Always-On
+
+Design an explicit reduced-luminance variant keyed on `isLuminanceReduced`, rather than letting the system dim a layout built for full brightness.
+
+- **Survives:** heart rate, zone, override state, decision line.
+- **Dropped:** now playing. Most likely to be stale, least useful with the wrist down.
+- **The capsules are replaced by the zone name in real type.** Five thin capsules with one filled in an accent colour is a good full-brightness affordance and a poor dim one — at reduced luminance and reduced colour, "filled accent" and "grey" converge, and counting position on ~29 pt capsules in low light is the wrong thing to ask. A word is unambiguous at any brightness.
+- **Return to the glance page when luminance drops.** Otherwise dropping the wrist while on the controls page leaves a dimmed `End workout` as the always-on display, which is useless and mildly alarming.
+
+The coarse override countdown above is Always-On-native as a side effect: `~2 min` stays correct for a whole minute, where a ticking `2:47` would be wrong between updates.
+
+**One thing to know rather than fix.** Always-On staleness is a *rendering* property. The workout session keeps delivering samples normally, so `HRWindow` does not report a gap and the §6.2 stale treatment never fires — but the pixels can be a minute old. Nothing distinguishes an Always-On snapshot from a live reading, and no API reports when the system last drew the app. Accepted rather than worked around; recorded because "why did it say 142 when I was clearly at 170" is exactly the kind of thing that erodes trust in a system whose whole job is reacting to heart rate. The refresh budget itself is **V-8**.
 
 ### 11.3 Telemetry
 
@@ -507,6 +666,8 @@ This file is the tuning instrument for §6.7. Treat it as a first-class delivera
 | V-4 | Does a queued track reliably play next when the context is a shuffled playlist? | Enqueue a known URI mid-track, observe boundary | §7.3 — the fallback design depends on queue-over-context precedence |
 | V-5 | Watch network reliability without the phone | Full session on LTE, and on Wi-Fi only, phone powered off | R-5, `DEGRADED` thresholds |
 | V-6 | Do Prompted Playlist auto-refreshes change IDs or only contents? | Schedule a daily refresh, compare playlist ID and contents after 48 h | §4.5. If IDs rotate, configuration must be re-pointed each time and R-13 needs a repair flow. |
+| V-7 | What happens when a workout starts **while this app already holds a session**? | Start a session here, then accept watchOS's auto-workout prompt (or start Apple Workout) and observe | §10, §7.4. V-3 asks the defensive direction; this is the one that bites mid-run. If the session is torn away, the music stops responding with no user-visible cause — the worst available failure. |
+| V-8 | How often does Always-On actually redraw during an active workout session? | Run a session, drop the wrist, compare the displayed HR against the log at known times | §11.2. Decides whether the decision line belongs in Always-On at all: at a once-a-minute budget, `Next: <title>` may be describing the previous track. |
 
 Record answers in `/docs/verification.md` with dates. Several are behaviour that is undocumented and may change.
 
