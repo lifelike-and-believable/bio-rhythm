@@ -128,3 +128,36 @@ margin is worth the extra constant.
 
 Not blocking: `ZoneModel` does not exist yet, so nothing has been built on the
 answer.
+
+### D-5. Three things §6 does not decide about zone selection — settled in code
+
+`ZoneModel` (§6.3–§6.6) needed answers §6 does not give. Each is recorded here
+because each is visible in the M2 logs and each is cheap to reverse once those
+logs exist.
+
+**Where a session starts.** §6 never says. The first observation seeds
+`currentZone` from the raw §6.1 mapping, with no hysteresis and no dwell.
+The alternative — start everyone at Z1 — would make a session that begins at
+tempo effort walk up over three tracks before the music caught up, which is
+the failure the step limit is supposed to prevent, not cause.
+
+**A gap in the samples breaks dwell.** §6.4 requires the proposal to differ
+from the current zone *continuously* for 20 s. A stale window is not evidence
+of continuity, so a nil observation resets the timer rather than letting it
+accrue through the gap. Conservative in the safe direction: it can only delay a
+zone change, never cause one. Worth checking against `dropout.json` traces —
+if real sensor gaps are frequent enough that zone changes get starved, the
+answer is a grace period, not accrual.
+
+**The override resets dwell.** §6.6 says the target zone is pinned during the
+hold; it does not say whether evidence accumulates underneath. It does not
+here, so when the hold lifts the model needs 20 s of fresh confirmation.
+Otherwise a change confirmed during the hold fires the instant the hold ends,
+which is most of the way to not having had a hold.
+
+**One more, not a decision so much as an observation.** §6.5's step limit is
+redundant as written: §6.3's `rawZone` already returns at most one step from
+the current zone, so with `MAX_STEP = 1` the clamp can never fire. It is
+implemented anyway as the enforcement point for I5 (§7.2), which is a
+guarantee the product rests on and should not depend on a property of a
+different function that a later edit might quietly remove.
