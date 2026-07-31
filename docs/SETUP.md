@@ -85,6 +85,32 @@ sideloaded build and not a bug in this code. A paid account gives a year.
 5. Open the watch app. It should leave "Waiting for the phone" and show a track,
    or "Nothing playing" if nothing is.
 
+## 5a. What you will see
+
+Two screens, side by side. Swipe between them; neither scrolls except the
+second (SPEC.md §11.2).
+
+**Glance** — heart rate large, the five zones as a row of capsules with the
+current one filled, a line saying what the system is doing, and now playing.
+
+**Controls**, one swipe left — `End workout`, `Resume auto`, `Block this track`
+(inert until M3 has pools), and diagnostics.
+
+Before a session the glance page shows readiness, an activity picker and Start.
+The activity choice includes its indoor/outdoor variant and is remembered.
+`Save to Health` is on by default: this app takes the device's one workout
+session, so it saves the workout the Workout app could not (R-14).
+
+**Two gestures worth knowing**, because neither is discoverable:
+
+- **Tap the zone row** to take manual control. It focuses; the Digital Crown
+  then moves the zone, and it locks where you stop. The row shows a padlock.
+- **Tap it again** to hand control back. The lock does not expire on its own
+  (§6.6) — it stays until you clear it.
+
+Drop your wrist and the display dims to heart rate and the zone name alone.
+Whatever page you were on, it returns to the glance page first.
+
 ## 6. The M0 exit criterion
 
 Play something on any device. **Power the phone fully off** — not locked, not
@@ -211,4 +237,4 @@ Record the answer in `docs/verification.md` against **V-1**, with the date.
 | 403 on every request | Premium lapsed, or a scope is missing (§11.4). |
 | App stops launching after a week | Free-account provisioning expired. Rebuild from Xcode. |
 | "Another app is already recording a workout" | §10's single-session constraint. End the session in the Workout app, Strava, or whatever started it. Not a retry situation. |
-| Zone indicator flickers between two zones | Expected in M1. The screen shows the raw §6.1 mapping; hysteresis, dwell, and the step limit arrive with `ZoneModel` in M2. |
+| Zone indicator flickers between two zones | **No longer expected.** The screen runs `ZoneModel` — §6.3 hysteresis, §6.4 dwell, §6.5 step limit — so a heart rate sitting on a threshold should not move the zone. If it does, that is a bug worth a trace. |
