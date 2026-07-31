@@ -138,9 +138,15 @@ https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
 Use a real Prompted Playlist, not an ordinary one. Whether *that specific kind*
 is readable is the entire question.
 
-If you have not created the four pools yet, [`docs/pools.md`](pools.md) covers
-the prompts, how big each pool wants to be, and why auto-refresh is worth
-leaving off until M2's tuning is finished.
+If you have not created the pools yet, [`docs/pools.md`](pools.md) covers the
+prompts, how big each pool wants to be, and why auto-refresh is worth leaving
+off until M2's tuning is finished. There are five now — Z0 was added with the
+meditation zone — but Z0 can point at the Z1 playlist, so four is enough to
+answer V-1 and to start M3.
+
+Creating the pools is the one setup task that needs the phone rather than the
+Mac, so it is worth doing whenever you have the Spotify app open and a moment,
+independently of everything above.
 
 ### 7c. Run it
 
