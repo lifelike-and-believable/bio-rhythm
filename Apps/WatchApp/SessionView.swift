@@ -72,7 +72,7 @@ struct SessionView: View {
             decisionLine
 
             if coordinator.state == .idle {
-                startButton
+                idle
             } else {
                 Divider()
                 NowPlayingSection(link: link, store: store)
@@ -145,12 +145,52 @@ struct SessionView: View {
         .lineLimit(2)
     }
 
+    /// §11.2's idle screen: readiness, activity type, Start — in that order.
+    ///
+    /// Readiness is not decoration. Offering to start a session whether or not
+    /// the phone has ever handed a token over means pressing the button and
+    /// finding out, which is the wrong order to learn it in.
+    ///
+    /// Absent from this build: the pool-loading half of §7.4's visible startup.
+    /// It cannot be written yet — `FETCHING_POOLS` needs pool IDs, and those
+    /// have nowhere to be configured until M4. The states that exist say what
+    /// they are doing; the ones that do not exist are not faked.
     @ViewBuilder
-    private var startButton: some View {
-        Button("Start workout") {
-            Task { await coordinator.start() }
+    private var idle: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            readiness
+
+            Picker("Activity", selection: $coordinator.settings.activity) {
+                ForEach(WorkoutActivity.all) { activity in
+                    Text(activity.name).tag(activity)
+                }
+            }
+            .pickerStyle(.navigationLink)
+
+            // R-14, on by default. It is the entire mitigation for §15's
+            // single-workout-session constraint, not a nicety — a session this
+            // app takes is a session the Workout app cannot have.
+            Toggle("Save to Health", isOn: $coordinator.settings.saveWorkout)
+                .font(.caption)
+
+            Button("Start workout") {
+                Task { await coordinator.start() }
+            }
+            .buttonStyle(.borderedProminent)
         }
-        .buttonStyle(.borderedProminent)
+    }
+
+    @ViewBuilder
+    private var readiness: some View {
+        if link.hasToken {
+            Label("Ready", systemImage: "checkmark.circle.fill")
+                .font(.caption2)
+                .foregroundStyle(.green)
+        } else {
+            Label("Connect Spotify on the phone", systemImage: "iphone")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+        }
     }
 
     // MARK: - The controls page
