@@ -212,7 +212,9 @@ Zones are derived from `maxHR`, which the owner sets explicitly (do not compute 
 
 `boundaries = [0.34, 0.60, 0.70, 0.82] × maxHR`, rounded to whole bpm. Default activity — the zone you are in walking around, warming up, or doing anything at all — is Z1, the 62-to-109 band at maxHR 182.
 
-**Every threshold is a fraction of `maxHR`, including the meditation ceiling.** `MEDITATION_CEILING = 34 %` was chosen to put the Z0/Z1 boundary at 62 bpm for the owner's 182. The uniformity earns its keep: `boundaries[i]` is the lower bound of zone `i + 1` with no offset and no special case, and an ascending fraction list is the only thing standing between §6.3 and a misordered threshold array. A single absolute bpm mixed in among percentages could cross the Z2 threshold at a low `maxHR` and would need its own validation and fallback path; as a fraction it cannot.
+**Every threshold is a fraction of `maxHR`, including the meditation ceiling.** `MEDITATION_CEILING = 34 %` was chosen to put the Z0/Z1 boundary at 62 bpm for the owner's 182. The uniformity earns its keep: `boundaries[i]` is the lower bound of zone `i + 1` with no offset and no special case, so ordering the fraction list is enough to order the thresholds. A single absolute bpm mixed in among percentages could cross the Z2 threshold at a low `maxHR` and would need its own validation and fallback path; as a fraction it cannot.
+
+**The fraction list must be ascending, and is sorted on construction rather than trusted.** §6.3 walks the threshold list and stops at the first bound the heart rate does not clear, so a misordered list does not fail — it silently reports the wrong zone. Sort rather than reject: R-13 puts these behind a settings screen in M4, and a hard precondition there is a watch app that dies mid-workout over a typo.
 
 The trade-off is real and worth stating: a meditative heart rate is arguably set by the resting floor rather than the maximum, so tying it to `maxHR` means it moves when `maxHR` is re-measured. Accepted in exchange for the uniformity. If it lands somewhere unhelpful after a re-measurement, change the fraction — that is what R-13 is for.
 

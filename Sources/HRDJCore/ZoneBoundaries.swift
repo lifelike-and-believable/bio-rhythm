@@ -8,11 +8,11 @@
 ///
 /// Every threshold is a fraction of `maxHR`, including the meditation ceiling.
 /// That uniformity is worth more than it looks: `thresholds[i]` is the lower
-/// bound of `Zone(rawValue: i + 1)` with no offset and no special case, and an
-/// ascending `fractions` array is the only thing standing between the control
-/// law and a misordered threshold list. A single absolute bpm mixed in among
-/// percentages could collide with the Z2 threshold at a low `maxHR` and would
-/// have needed its own validation and fallback; expressed as 0.34 it cannot.
+/// bound of `Zone(rawValue: i + 1)` with no offset and no special case, and
+/// ordering the `fractions` array is then enough to order the thresholds. A
+/// single absolute bpm mixed in among percentages could collide with the Z2
+/// threshold at a low `maxHR`, and no amount of sorting fixes that; expressed
+/// as 0.34 it cannot happen at all.
 ///
 /// The trade-off, recorded because it is real: a meditative heart rate is
 /// arguably set by the resting floor rather than the maximum, so tying it to
@@ -29,19 +29,38 @@
 /// remove, and it is worth seeing once before it is smoothed away.
 public struct ZoneBoundaries: Hashable, Sendable {
     /// The §6.1 defaults: the lower bounds of Z1, Z2, Z3, Z4 as fractions of
-    /// `maxHR`. Must be ascending.
+    /// `maxHR`.
     public static let defaultFractions: [Double] = [0.34, 0.60, 0.70, 0.82]
 
     public let maxHR: Int
-    /// Lower bounds of Z1, Z2, Z3, Z4 as fractions of `maxHR`.
+    /// Lower bounds of Z1, Z2, Z3, Z4 as fractions of `maxHR`, ascending.
+    /// Sorted on the way in, so this holds for any constructed value.
     public let fractions: [Double]
     /// Lower bounds of Z1, Z2, Z3, Z4 in whole bpm, ascending.
     public let thresholds: [Int]
 
+    /// Fractions are sorted rather than taken on trust.
+    ///
+    /// Ascending order is not a nicety here: `zone(for:)` walks the threshold
+    /// list and stops at the first entry the heart rate does not clear, so a
+    /// misordered array does not fail — it silently reports the wrong zone,
+    /// which is the worst failure mode available in this file. The invariant
+    /// was documented and unenforced, which is the same as unenforced.
+    ///
+    /// Sorted rather than rejected, deliberately. R-13 puts these behind a
+    /// settings screen in M4, and a `precondition` there is a watch app that
+    /// dies mid-workout because two fractions were entered out of order.
+    /// Sorting is a no-op on every valid configuration and yields what the
+    /// owner meant on an invalid one.
+    ///
+    /// Duplicate fractions are left alone. They cannot misorder anything; they
+    /// make one zone unreachable, which is a legible configuration mistake
+    /// rather than a silently wrong answer.
     public init(maxHR: Int, fractions: [Double] = ZoneBoundaries.defaultFractions) {
+        let ordered = fractions.sorted()
         self.maxHR = maxHR
-        self.fractions = fractions
-        self.thresholds = fractions.map { Self.threshold(maxHR: maxHR, fraction: $0) }
+        self.fractions = ordered
+        self.thresholds = ordered.map { Self.threshold(maxHR: maxHR, fraction: $0) }
     }
 
     /// `fraction × maxHR`, rounded to whole bpm (§6.1).

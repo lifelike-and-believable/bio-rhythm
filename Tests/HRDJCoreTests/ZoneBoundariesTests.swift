@@ -107,8 +107,7 @@ struct ZoneBoundariesTests {
     @Test("Thresholds stay ascending and distinct across every plausible maxHR")
     func thresholdsAreMonotonic() {
         // §6.3 walks the list one step at a time and §6.5 clamps on adjacency.
-        // Both are meaningless if the list is out of order, and an ascending
-        // `fractions` array is the only thing guaranteeing it. Expressing the
+        // Both are meaningless if the list is out of order. Expressing the
         // meditation ceiling as a fraction rather than an absolute bpm is what
         // makes this hold for free — an absolute 62 would cross the Z2
         // threshold below maxHR 104.
@@ -117,6 +116,30 @@ struct ZoneBoundariesTests {
             #expect(thresholds == thresholds.sorted())
             #expect(Set(thresholds).count == thresholds.count)
         }
+    }
+
+    @Test("A misordered fractions array is sorted, not honoured")
+    func misorderedFractionsAreNormalised() {
+        // `zone(for:)` stops at the first threshold the heart rate does not
+        // clear, so an out-of-order array would not fail — it would quietly
+        // return the wrong zone. R-13 hands this array to a settings screen in
+        // M4, so "the caller will pass it ascending" stops being true.
+        let scrambled = ZoneBoundaries(maxHR: 182, fractions: [0.82, 0.34, 0.70, 0.60])
+        let ordered = ZoneBoundaries(maxHR: 182)
+
+        #expect(scrambled.fractions == ordered.fractions)
+        #expect(scrambled.thresholds == ordered.thresholds)
+        #expect(scrambled == ordered)
+
+        for bpm in stride(from: 0, through: 240, by: 1) {
+            #expect(scrambled.zone(for: bpm) == ordered.zone(for: bpm))
+        }
+    }
+
+    @Test("Sorting is a no-op on an already-ordered configuration")
+    func orderedFractionsAreUntouched() {
+        let fractions = [0.30, 0.55, 0.72, 0.88]
+        #expect(ZoneBoundaries(maxHR: 182, fractions: fractions).fractions == fractions)
     }
 
     @Test("The owner's own configuration produces the thresholds they can check")
