@@ -3,11 +3,31 @@
 Answers to SPEC.md §12. Several of these are undocumented platform behaviour
 that may change, so each answer is dated and says how it was obtained.
 
-**Status: all six open.** None of them can be answered without Premium
-credentials, a paired watch, and a real Prompted Playlist, so none were
-answered while building M0. §12 says to run the checklist before building on
-top of the affected areas; the M0 code deliberately stops short of every one of
-those areas.
+**Status: all eight open.** V-7 and V-8 were added during the §11.2 UX pass;
+the rest date from M0. None can be answered without Premium credentials, a
+paired watch and a real Prompted Playlist.
+
+§12 says to run the checklist before building on top of the affected areas.
+That has held so far — but it is now the binding constraint rather than a
+precaution, because M2's app-layer wiring would be the first work built on top
+of four milestones that have never run.
+
+**V-7 and V-8 are both testable in the same sitting as M1's exit criterion**,
+which makes that one session the highest-value hour available to this project.
+
+### The two milestone exit criteria, which belong here too
+
+§12 is not the whole list of unverified things, and keeping the rest elsewhere
+is how a README came to claim nine unverified items when there are ten. Both
+are on-device, both are open:
+
+| ID | Criterion | Where it is specified |
+|---|---|---|
+| **M0-exit** | The watch reads playback state with the phone **powered off** — not locked, not Bluetooth off. Proves the phone is needed once, for onboarding, and never again (G3). | §13, `docs/SETUP.md` §6 |
+| **M1-exit** | A 30-minute session holds background runtime and logs continuous heart rate. | §13 |
+
+M0-exit is a weaker form of V-5 and worth recording against it when it passes.
+M1-exit is the session that also answers V-7 and V-8.
 
 | ID | Question | Blocks | Status | Date | Answer |
 |---|---|---|---|---|---|
@@ -314,6 +334,14 @@ first M2 traces is exactly the evidence needed, and guessing before those exist
 is the thing CLAUDE.md non-negotiable #4 is about. Until then the label on the
 zone row is the mitigation: an override the owner did not ask for says so, and
 the row saying it is the button that clears it.
+
+**The stakes went up when the override stopped expiring.** A false-positive
+skip used to cost three minutes of suspended auto-control and then heal itself.
+It now costs the rest of the session unless the owner notices the padlock and
+taps it. That does not change the answer — the threshold still wants log
+evidence — but it does mean R-10 should land *with* an expiry for the inferred
+case (§6.6 keeps `OVERRIDE_HOLD` dormant for exactly this), rather than
+inheriting the deliberate lock's permanence.
 
 ### On Always-On, and one thing that cannot be fixed
 

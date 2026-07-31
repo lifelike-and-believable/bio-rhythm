@@ -31,10 +31,27 @@ Apps/iOSCompanion    Onboarding only: the OAuth leg watchOS cannot perform.
 
 ## Status
 
-**M0, written but unverified.** Auth and playback reading exist and are unit
-tested; nothing has run on a device yet. `swift test` covers `HRDJCore` and
-`SpotifyKit` with no simulator, network, or credentials.
+**Built, and never run.** The control law, the Spotify client and the whole
+watch interface exist and are internally consistent. Every line of it has been
+verified by CI and by nothing else — no session has taken place on a wrist.
 
-There is no control loop yet. M2 is observe-only on purpose — the constants in
-§6.7 get tuned against logs from real workouts before the loop is allowed to
-drive anything.
+Built: M0 (auth, token transfer, playback read), M1 (heart-rate window, zones,
+workout session, telemetry), M2's control law (`ZoneModel`, `TrackClock`,
+`CommitScheduler`, `PoolManager`, `Controller`), and the §11.2 watch UI.
+
+Not built: M2's app-layer wiring — pools fetched into `PoolManager`, the
+controller driven off the workout session. It is blocked on pool configuration,
+which is M4.
+
+`swift test` covers `HRDJCore` and `SpotifyKit` with no simulator, network or
+credentials, and that constraint is worth keeping.
+
+**M2 is observe-only on purpose.** `Controller.actuationEnabled` defaults to
+false and gates exactly one statement — the `enqueue`. Everything upstream runs
+identically either way, so the traces are the real thing minus its last step.
+The §6.7 constants get tuned against those traces before the loop is allowed to
+drive anything (§13: *do not compress M2*).
+
+Ten things are unverified: §12's **V-1 through V-8**, and the on-device exit
+criteria for **M0** and **M1**. All ten are listed in
+[`docs/verification.md`](docs/verification.md).
