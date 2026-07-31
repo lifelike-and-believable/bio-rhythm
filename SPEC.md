@@ -200,16 +200,23 @@ All constants below are **tunable defaults** and must be surfaced in configurati
 
 ### 6.1 Zone definition
 
-Zones are derived from `maxHR`, which the owner sets explicitly (do not compute from age).
+Zones above the bottom are derived from `maxHR`, which the owner sets explicitly (do not compute from age).
 
-| Zone | Label | Lower bound (% maxHR) |
-|---|---|---|
-| Z1 | Recovery | 0 |
-| Z2 | Aerobic | 60 |
-| Z3 | Tempo | 70 |
-| Z4 | Hard | 82 |
+| Zone | Index | Label | Lower bound |
+|---|---|---|---|
+| Z0 | 0 | Meditation | 0 |
+| Z1 | 1 | Recovery | `MEDITATION_CEILING` bpm (absolute) |
+| Z2 | 2 | Aerobic | 60 % maxHR |
+| Z3 | 3 | Tempo | 70 % maxHR |
+| Z4 | 4 | Hard | 82 % maxHR |
 
-`boundaries = [0.60, 0.70, 0.82] × maxHR`, rounded to whole bpm.
+`boundaries = [MEDITATION_CEILING] + [0.60, 0.70, 0.82] × maxHR`, the percentage terms rounded to whole bpm. At maxHR 182 that is `[62, 109, 127, 149]`.
+
+**The meditation threshold is an absolute bpm and is the only one that is.** Effort above aerobic scales with an individual's ceiling; a resting or meditative heart rate does not — it is set by the floor, and two people with the same resting HR can have maxHRs twenty beats apart. Expressed as a fraction it would drift upward whenever `maxHR` was re-measured upward, which is backwards. This is a deliberate divergence from "all zones are percentages of maxHR" and it is confined to this one boundary.
+
+**Degenerate configurations.** The threshold list must stay ascending; the rules in §6.3 and §6.5 are meaningless otherwise. If `MEDITATION_CEILING` is not strictly below the Z2 threshold — which needs a `maxHR` at or below about 103 — it is dropped and the range degrades to Z1–Z4 rather than to something silently misordered. Setting `MEDITATION_CEILING` to nothing does the same thing deliberately.
+
+The zone index is load-bearing: §6.3 indexes `boundaries` by it and §6.5 clamps on it. Z0 sits at index 0 with Z1–Z4 shifted up, rather than being bolted on below zero, so both rules are unchanged by its addition.
 
 ### 6.2 Observation
 
@@ -225,12 +232,16 @@ Given `currentZone = n` and `observedHR = h`:
 
 ```
 rawZone(h, n):
-    if n < 3 and h > boundaries[n]   + MARGIN  →  n + 1
-    if n > 0 and h < boundaries[n-1] - MARGIN  →  n - 1
-    otherwise                                  →  n
+    if n < topZone and h > boundaries[n]   + MARGIN  →  n + 1
+    if n > 0       and h < boundaries[n-1] - MARGIN  →  n - 1
+    otherwise                                        →  n
 ```
 
+`topZone` is `4` normally, or `3` when the meditation threshold has been dropped (§6.1) and zone indices run 1–4. Write it against the boundary count rather than a literal.
+
 `MARGIN = 0.025 × maxHR` (≈ 4–5 bpm for most values). Asymmetric thresholds are the point: entering a zone requires more than leaving it, which prevents flapping when HR sits on a boundary.
+
+The margin is absolute, so at the Z0/Z1 boundary it is proportionally much wider than at Z3/Z4: at maxHR 182 you leave meditation at ≥ 66.6 bpm and re-enter below 57.5. That asymmetry is wanted here — drifting in and out of a meditation pool because of a two-beat wobble is exactly the flapping §6.3 exists to prevent — but it is worth checking against real traces in M2 before assuming one margin suits both ends of the range.
 
 ### 6.4 Dwell requirement
 
@@ -238,7 +249,7 @@ rawZone(h, n):
 
 ### 6.5 Step limit
 
-`targetZone = clamp(eligibleZone, currentZone - 1, currentZone + 1)`. At most one zone step per commit, regardless of how large the HR excursion was. A sprint from Z1 to Z4 walks up over three tracks.
+`targetZone = clamp(eligibleZone, currentZone - 1, currentZone + 1)`. At most one zone step per commit, regardless of how large the HR excursion was. A sprint from Z1 to Z4 walks up over three tracks; from Z0, four.
 
 ### 6.6 Override
 
@@ -255,6 +266,7 @@ The watch UI must show an unambiguous override indicator with remaining time, an
 |---|---|---|
 | `WINDOW` | 45 s | Trailing mean window |
 | `STALE_SAMPLE` | 10 s | Freshness bound |
+| `MEDITATION_CEILING` | 62 bpm | Z0/Z1 boundary. **Absolute bpm, not a fraction of maxHR** (§6.1). A personal measurement like `maxHR` rather than a tuning constant — set it from observation, above where you actually settle |
 | `MARGIN` | 2.5 % maxHR | Hysteresis half-width |
 | `DWELL` | 20 s | Continuous confirmation before a zone change is eligible |
 | `MAX_STEP` | 1 | Zones per commit |
@@ -332,7 +344,7 @@ IDLE ──start──▶ AUTHORIZING ──▶ FETCHING_POOLS ──▶ ACQUIRI
                                           ──end──▶ TEARDOWN ──▶ IDLE
 ```
 
-- `FETCHING_POOLS`: fetch all four pools (§4.3), fresh, every session. Fail fast with a clear message if a pool is empty or unreadable.
+- `FETCHING_POOLS`: fetch every configured pool (§4.3), fresh, every session. Fail fast with a clear message if a pool is empty or unreadable. Two pools may be configured with the same playlist ID — Z0 and Z1 is the expected case (§8) — and it should be fetched once, not twice.
 - `ACQUIRING_DEVICE`: `GET /me/player/devices`, select the watch, `PUT /me/player` to transfer, `PUT /me/player/shuffle`, `PUT /me/player/play` with fallback context.
 - `DEGRADED`: entered after `3` consecutive network failures. HR sampling and logging continue; commits are suspended; the UI shows it. Exponential backoff retry (2, 4, 8, 16, 30 s, capped) probing `GET /me/player`. Return to `RUNNING` on success.
 - `TEARDOWN`: end the workout session, flush telemetry, optionally save the workout (R-14). Do **not** pause playback on teardown unless the owner asks.
@@ -341,7 +353,7 @@ IDLE ──start──▶ AUTHORIZING ──▶ FETCHING_POOLS ──▶ ACQUIRI
 
 ## 8. Pool management
 
-- **PoolID** ∈ {Z1, Z2, Z3, Z4}, each mapped to one Spotify playlist ID in configuration.
+- **PoolID** ∈ {Z0, Z1, Z2, Z3, Z4}, one per zone, each mapped to one Spotify playlist ID in configuration. The mapping need not be injective: pointing Z0 and Z1 at the same playlist is a supported configuration and the way to have the meditation zone without curating a separate pool for it. `docs/pools.md` covers the trade-off.
 - Fetch with `GET /v1/playlists/{id}/items`, paginated. Post-Feb-2026 field names apply (`items.items[].item`).
 - **Filter on ingest:** drop entries where `item == nil`, `item.type != "track"`, `is_local == true`, or `item.is_playable == false`. Drop anything on the blocklist.
 - **Deduplicate across pools.** A track may legitimately appear in two Prompted Playlists. Keep a session-wide `playedURIs` set; a track played from Z2 is ineligible in Z3 for the rest of the session.
@@ -418,7 +430,7 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 | R-10 | P1 | Manual skip detection → override | Track changes more than 5 s before `estimatedEnd` sets `overrideUntil` |
 | R-11 | P1 | Blocklist | Long-press on now-playing adds the URI; blocked tracks never reappear in any pool |
 | R-12 | P1 | Manual zone lock | Owner can pin a zone; pin implies override until cleared |
-| R-13 | P1 | Configuration surface | Every §6.7 constant, `maxHR`, four pool IDs, and fallback pool editable without rebuild |
+| R-13 | P1 | Configuration surface | Every §6.7 constant, `maxHR`, `MEDITATION_CEILING`, all five pool IDs, and fallback pool editable without rebuild |
 | R-14 | P2 | Optionally save the workout to HealthKit | Toggle; when on, the session appears in Health with HR data |
 | R-15 | P2 | Session summary screen | Time in each zone, commit count, miss count, override count |
 
@@ -427,7 +439,7 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 Minimum viable, glanceable, one screen:
 
 - Current HR, large.
-- Current zone, with the four zones shown as a discrete indicator (not a continuous gauge — the system is discrete and the UI should not imply otherwise).
+- Current zone, with every zone shown as a discrete indicator (not a continuous gauge — the system is discrete and the UI should not imply otherwise). Five steps as of §6.1's meditation zone.
 - Now playing: title and artist, truncated.
 - Next committed track, or "deciding" during `OBSERVING`, or a warning glyph in `MISSED` / `DEGRADED`.
 - Override indicator with countdown when active, plus "resume auto".
@@ -477,7 +489,7 @@ This file is the tuning instrument for §6.7. Treat it as a first-class delivera
 | Commit returns 403 | Log loudly with body; likely Premium lapse or scope problem. Enter `DEGRADED`, surface a distinct message. |
 | Commit returns 429 | Honour `Retry-After`; counts as a failed attempt |
 | 3 consecutive failures of any kind | `DEGRADED` |
-| Pool fetch fails at session start | Refuse to start `RUNNING` with a specific error. Do not start with fewer than four pools. |
+| Pool fetch fails at session start | Refuse to start `RUNNING` with a specific error. Do not start without a usable pool for every zone (§8 — Z0 and Z1 may share one playlist). |
 | `invalid_grant` on refresh | Clear tokens, re-onboarding state |
 | Workout session start fails | Named error identifying the single-session conflict |
 
@@ -520,7 +532,7 @@ Do not compress M2. It is the only milestone that produces the data needed to ma
 
 Fixtures in `Tests/HRDJCoreTests/Fixtures/*.json`, each a timestamped HR series:
 
-- `ramp_up.json` — 60 → 175 bpm over 20 min. Expect monotonic non-decreasing zones, one step at a time.
+- `ramp_up.json` — 60 → 175 bpm over 20 min. Expect monotonic non-decreasing zones, one step at a time. Starts below `MEDITATION_CEILING`, so it exercises the Z0 → Z4 climb end to end.
 - `ramp_down.json` — mirror. Expect monotonic non-increasing.
 - `boundary_oscillation.json` — HR hovering ±3 bpm around a zone boundary for 15 min. **Expect zero zone changes.** This is the hysteresis test and the most important one in the suite.
 - `spiky.json` — 10-second spikes into Z4 from a Z2 baseline. Expect no zone change (dwell rejects them).
@@ -559,7 +571,7 @@ A checklist in `/docs/field-test.md` covering: phone off, airplane mode mid-sess
 
 ### Deliberate trade-offs, recorded
 
-- **Discrete zones over continuous energy mapping.** Four buckets are all the resolution the actuator supports, given one decision per three minutes. A continuous model would be false precision.
+- **Discrete zones over continuous energy mapping.** A handful of buckets is all the resolution the actuator supports, given one decision per three minutes. A continuous model would be false precision. The count is a product decision rather than a structural one — going from four to five cost one enum case and one threshold.
 - **Trailing mean over instantaneous HR.** Adds ~20 s of lag, removes essentially all noise sensitivity. The actuation rate is already low enough that the lag is free.
 - **Late commit over playlist-tail rewriting.** Rewriting a scratch playlist's tail would make decisions revocable, but relies on undocumented client behaviour around mid-playback playlist edits. Late commit uses only documented semantics. Revisit as a v2 if the miss rate proves annoying.
 - **Watch-only runtime, phone-only onboarding.** `ASWebAuthenticationSession` does not exist on watchOS. A one-time phone step is a smaller cost than any on-watch code-entry scheme.

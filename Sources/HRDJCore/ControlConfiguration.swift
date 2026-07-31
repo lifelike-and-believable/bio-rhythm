@@ -30,6 +30,18 @@ public struct ControlConfiguration: Hashable, Sendable {
     public var maxHR: Int
     /// Lower bounds as a fraction of `maxHR`, for Z2, Z3, Z4.
     public var zoneFractions: [Double] = [0.60, 0.70, 0.82]
+    /// The bpm at or above which the meditation zone has been left.
+    ///
+    /// Absolute, not a fraction of `maxHR`, and the only threshold in the
+    /// system that is — `ZoneBoundaries` explains why. Set to `nil` to drop
+    /// back to §6.1's original four zones.
+    ///
+    /// This one *is* a free choice rather than a §6.7 default, so
+    /// non-negotiable #4 does not apply to it in the same way: it is closer to
+    /// `maxHR`, a personal measurement, than to a tuning constant. It should
+    /// still move on evidence — sit still, watch the number, and pick a value
+    /// above what you actually settle at.
+    public var meditationCeilingBPM: Int? = 62
     /// Hysteresis half-width, as a fraction of `maxHR`. Entering a zone
     /// requires more than leaving it; that asymmetry is the point (§6.3).
     public var marginFraction: Double = 0.025
@@ -62,7 +74,11 @@ public struct ControlConfiguration: Hashable, Sendable {
     }
 
     public var boundaries: ZoneBoundaries {
-        ZoneBoundaries(maxHR: maxHR, fractions: zoneFractions)
+        ZoneBoundaries(
+            maxHR: maxHR,
+            fractions: zoneFractions,
+            meditationCeilingBPM: meditationCeilingBPM
+        )
     }
 
     /// §6.3: `MARGIN = 0.025 × maxHR`, roughly 4–5 bpm for most values.

@@ -32,7 +32,29 @@ contained fix:
 - **Shuffle before play** in `SpotifyPlayerClient.play(context:shuffle:)`.
   Ordering is an assumption; confirm it alongside V-4.
 
-## Open design questions raised while building M0
+## Deliberate changes to SPEC.md
+
+CLAUDE.md makes SPEC.md authoritative and says to flag conflicts rather than
+diverge silently. Twice now the right answer was to change the spec. Both are
+listed here so the amendments are reviewable in one place rather than only as
+diffs.
+
+- **2026-07-31 — playback protocols moved from `SpotifyKit` to `HRDJCore`**
+  (§5.2, §5.3). D-1 below has the reasoning. Owner's decision.
+- **2026-07-31 — meditation zone added** (§6.1, and consequentially §6.3, §6.5,
+  §6.7, §7.4, §8, §11.2, R-13). Owner's request. Two things about it are worth
+  knowing before reading the code:
+  - **Its boundary is an absolute bpm (62), not a fraction of `maxHR`.** Every
+    other threshold in the system is a percentage. §6.1 explains why this one
+    cannot be: a meditative HR is set by the floor, not the ceiling, and as a
+    fraction it would drift upward whenever `maxHR` was re-measured upward.
+  - **Zone indices shifted.** Z0 sits at index 0 and Z1–Z4 moved up by one, so
+    §6.3's boundary indexing and §6.5's step arithmetic are unchanged. This was
+    free only because no §11.3 telemetry has been recorded yet. Once M2 starts
+    producing traces, renumbering makes sessions incomparable and a future zone
+    would have to be appended instead.
+
+## Open design questions
 
 Recorded here rather than resolved unilaterally, per CLAUDE.md ("if a request
 conflicts with SPEC.md, say so rather than silently diverging").
@@ -83,3 +105,20 @@ unilaterally, because it introduces a type §5.2 does not mention.
 module that imports `HRDJCore` must write `HRDJCore.Clock` or hit an ambiguity
 error. It is a papercut, not a problem, and the spec's name was kept. Renaming
 to `MonotonicClock` would remove it if the friction proves annoying.
+
+### D-4. Does one hysteresis margin suit both ends of the range? — M2 tuning
+
+The meditation zone (§6.1) put a threshold at 62 bpm, far below the others.
+`MARGIN` is 2.5 % of `maxHR` and therefore absolute — 4.55 bpm at maxHR 182 —
+so it is proportionally much wider at the Z0/Z1 boundary than at Z3/Z4. In
+practice you leave meditation at ≥ 66.6 bpm and re-enter below 57.5.
+
+That is defensible and probably right: sitting still, a two-beat wobble should
+not change what is playing, and the pool either side is very different. But it
+is a guess, and it is the sort of guess §6.7 says to settle with logs rather
+than argument. Left at one margin for now. Look at the `zone_change` records
+around 62 bpm in the first M2 traces before deciding whether a per-boundary
+margin is worth the extra constant.
+
+Not blocking: `ZoneModel` does not exist yet, so nothing has been built on the
+answer.
