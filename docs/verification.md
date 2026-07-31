@@ -15,6 +15,20 @@ of four milestones that have never run.
 **V-7 and V-8 are both testable in the same sitting as M1's exit criterion**,
 which makes that one session the highest-value hour available to this project.
 
+### The two milestone exit criteria, which belong here too
+
+§12 is not the whole list of unverified things, and keeping the rest elsewhere
+is how a README came to claim nine unverified items when there are ten. Both
+are on-device, both are open:
+
+| ID | Criterion | Where it is specified |
+|---|---|---|
+| **M0-exit** | The watch reads playback state with the phone **powered off** — not locked, not Bluetooth off. Proves the phone is needed once, for onboarding, and never again (G3). | §13, `docs/SETUP.md` §6 |
+| **M1-exit** | A 30-minute session holds background runtime and logs continuous heart rate. | §13 |
+
+M0-exit is a weaker form of V-5 and worth recording against it when it passes.
+M1-exit is the session that also answers V-7 and V-8.
+
 | ID | Question | Blocks | Status | Date | Answer |
 |---|---|---|---|---|---|
 | V-1 | Are Prompted Playlist items readable via `GET /v1/playlists/{id}/items`? | §8 entirely | **Open** | — | Run `Scripts/capture-fixtures.sh` against a real Prompted Playlist. A populated `items.items[].item` is a pass. If it fails, pools must be manually duplicated into ordinary playlists. |

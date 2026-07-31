@@ -52,6 +52,6 @@ identically either way, so the traces are the real thing minus its last step.
 The §6.7 constants get tuned against those traces before the loop is allowed to
 drive anything (§13: *do not compress M2*).
 
-Nine things are unverified and listed in
-[`docs/verification.md`](docs/verification.md): §12's V-1 through V-8, plus the
-on-device exit criteria for M0 and M1.
+Ten things are unverified: §12's **V-1 through V-8**, and the on-device exit
+criteria for **M0** and **M1**. All ten are listed in
+[`docs/verification.md`](docs/verification.md).
