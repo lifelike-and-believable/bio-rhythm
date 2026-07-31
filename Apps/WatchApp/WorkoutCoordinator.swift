@@ -26,13 +26,15 @@ final class WorkoutCoordinator {
     /// caused it.
     enum OverrideCause {
         case locked
-        case paused
+        // §6.6's pause/resume trigger was removed with the timeout: a paused
+        // workout produces no samples, so §6.2's stale path already holds the
+        // zone, and a permanent hold set by watchOS auto-pausing would suspend
+        // auto-control without the owner doing anything.
         case skipped
 
         var label: String {
             switch self {
             case .locked: "Locked"
-            case .paused: "Paused"
             case .skipped: "Skipped"
             }
         }
@@ -51,7 +53,6 @@ final class WorkoutCoordinator {
     /// Drives the "settling" line; nil most of the time.
     private(set) var pendingZone: Zone?
     private(set) var isOverridden = false
-    private(set) var overrideRemaining: Duration?
     private(set) var overrideCause: OverrideCause?
     private(set) var sampleCount = 0
     private(set) var isStale = false
@@ -77,7 +78,6 @@ final class WorkoutCoordinator {
     /// HealthKit's `Date` stamps can be placed on the monotonic timeline.
     private var sessionOrigin: (wall: Date, instant: Instant)?
     private var wasStale = false
-    private var overrideTicker: Task<Void, Never>?
     /// Captured at `start`, because `stop` must honour what the session was
     /// begun with rather than whatever the toggle says by the time it ends.
     private var savingThisSession = false
@@ -100,20 +100,18 @@ final class WorkoutCoordinator {
 
     /// Pins a zone and starts the hold. §11.2's Digital Crown gesture.
     func lockZone(_ zone: Zone) {
-        zoneModel.lockZone(zone, at: clock.now)
+        zoneModel.lockZone(zone)
         overrideCause = .locked
         refreshDerived()
-        startOverrideTicker()
         log(.overrideSet)
     }
 
     /// Suspends auto-control without changing the zone — a detected skip, or a
     /// pause/resume cycle.
     func beginOverride(_ cause: OverrideCause) {
-        zoneModel.beginOverride(at: clock.now)
+        zoneModel.beginOverride()
         overrideCause = cause
         refreshDerived()
-        startOverrideTicker()
         log(.overrideSet)
     }
 
@@ -121,36 +119,8 @@ final class WorkoutCoordinator {
     func resumeAuto() {
         zoneModel.resumeAuto()
         overrideCause = nil
-        overrideTicker?.cancel()
-        overrideTicker = nil
         refreshDerived()
         log(.overrideCleared)
-    }
-
-    /// Keeps the override countdown moving when nothing else does.
-    ///
-    /// Everything the screen shows is recomputed in `refreshDerived`, which
-    /// runs when a heart rate sample arrives. The hold, though, is a function
-    /// of time alone — so with no samples the countdown freezes and the
-    /// indicator never clears itself when the hold expires.
-    ///
-    /// That is not a corner case. §6.6 sets an override on a pause/resume
-    /// cycle, and a paused workout is exactly when HealthKit stops delivering:
-    /// the one trigger guaranteed to produce no samples is also the one that
-    /// most needs the countdown to keep running.
-    ///
-    /// Five seconds is well inside the coarse countdown's resolution, so the
-    /// visible cost is nothing and the wake-ups stop the moment the hold does.
-    private func startOverrideTicker() {
-        overrideTicker?.cancel()
-        overrideTicker = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard let self else { return }
-                self.refreshDerived()
-                if !self.isOverridden { return }
-            }
-        }
     }
 
     func start() async {
@@ -220,8 +190,6 @@ final class WorkoutCoordinator {
     /// indistinguishable on screen from a live value and is worst after a
     /// dropout, where the stale figure is already wrong.
     private func resetObservation() {
-        overrideTicker?.cancel()
-        overrideTicker = nil
         window = HRWindow(configuration: configuration)
         zoneModel = ZoneModel(configuration: configuration)
         instantaneousBPM = nil
@@ -229,7 +197,6 @@ final class WorkoutCoordinator {
         zone = nil
         pendingZone = nil
         isOverridden = false
-        overrideRemaining = nil
         overrideCause = nil
         sampleCount = 0
         isStale = false
@@ -272,18 +239,11 @@ final class WorkoutCoordinator {
 
         zone = zoneModel.currentZone
         pendingZone = zoneModel.candidate
-        isOverridden = zoneModel.isOverridden(at: now)
-        overrideRemaining = zoneModel.overrideRemaining(at: now)
-        if !isOverridden {
-            // The hold can lapse on its own, so the cause and the ticker have
-            // to be cleaned up here as well as in `resumeAuto`.
-            if overrideCause != nil {
-                overrideCause = nil
-                log(.overrideCleared)
-            }
-            overrideTicker?.cancel()
-            overrideTicker = nil
-        }
+        // No expiry, so nothing to reconcile: the hold changes only when the
+        // owner changes it. The five-second ticker that used to keep this
+        // honest went with the timeout, and so did the whole class of bugs
+        // around a countdown that froze when heart rate stopped arriving.
+        isOverridden = zoneModel.isOverridden
 
         if isStale && !wasStale {
             log(.hrSampleGap)
@@ -350,11 +310,6 @@ final class WorkoutCoordinator {
             // §10: a paused session suspends commits. Nothing to suspend yet in
             // M1, but the state has to be visible or M3 inherits a silent bug.
             state = .paused
-            // §6.6 lists a pause/resume cycle as an override trigger. Setting
-            // it here rather than on resume means the indicator is already
-            // correct when the owner looks at the screen, which is usually
-            // while it is paused.
-            if !isOverridden { beginOverride(.paused) }
         case .ended, .stopped:
             // Ended from outside the app — the Workout app taking the session,
             // or HealthKit failing it. Flipping the label alone would leave the

@@ -288,72 +288,67 @@ struct ZoneModelTests {
 
     // MARK: - §6.6 Override
 
-    @Test("An override pins the target zone for OVERRIDE_HOLD")
+    @Test("An override pins the target zone indefinitely")
     func overridePinsTheZone() {
         var model = self.model()
         model.observe(hr: 100, at: t(0))
-        model.beginOverride(at: t(1))
+        model.beginOverride()
 
         hold(&model, bpm: 175, from: 2, to: 170)
 
-        #expect(model.isOverridden(at: t(170)) == true)
+        #expect(model.isOverridden)
         #expect(model.targetZone(at: t(170)) == .z1)
         model.recordCommit(at: t(170))
         #expect(model.currentZone == .z1)
     }
 
-    @Test("The hold expires after exactly OVERRIDE_HOLD, then dwell starts fresh")
-    func overrideExpires() {
+    @Test("The hold does not expire on its own")
+    func overrideDoesNotExpire() {
+        // The property this replaced: §6.6 used to release the zone after
+        // OVERRIDE_HOLD. On a deliberate lock that is the wrong behaviour —
+        // 180 s is an arbitrary interval, and the music starts moving again at
+        // a moment the owner did not choose and may not notice.
         var model = self.model()
         model.observe(hr: 100, at: t(0))
-        model.beginOverride(at: t(1))
+        model.beginOverride()
 
-        hold(&model, bpm: 175, from: 2, to: 180)
-        #expect(model.isOverridden(at: t(181)) == false)
+        hold(&model, bpm: 175, from: 2, to: 600)   // ten minutes at Z4 effort
+
+        #expect(model.isOverridden)
+        #expect(model.targetZone(at: t(600)) == .z1)
+        #expect(model.targetZone(at: t(86_400)) == .z1)
+    }
+
+    @Test("Resume auto is the only way out, and dwell starts fresh after it")
+    func resumeAutoIsTheOnlyExit() {
+        var model = self.model()
+        model.observe(hr: 100, at: t(0))
+        model.beginOverride()
+
+        hold(&model, bpm: 175, from: 2, to: 300)
+        model.resumeAuto()
+        #expect(model.isOverridden == false)
 
         // Nothing accumulated during the hold, so the change is not eligible
-        // the instant it lifts — that would be most of the way to not having
-        // had a hold at all.
-        #expect(model.targetZone(at: t(181)) == .z1)
+        // the instant control comes back — that would be most of the way to
+        // not having had a hold at all.
+        #expect(model.targetZone(at: t(301)) == .z1)
 
-        hold(&model, bpm: 175, from: 182, to: 210)
-        #expect(model.targetZone(at: t(210)) == .z2)
+        hold(&model, bpm: 175, from: 302, to: 330)
+        #expect(model.targetZone(at: t(330)) == .z2)
     }
 
-    @Test("Resume auto clears the hold immediately")
-    func resumeAutoClears() {
-        var model = self.model()
-        model.observe(hr: 100, at: t(0))
-        model.beginOverride(at: t(1))
-        #expect(model.overrideRemaining(at: t(1)) == .seconds(180))
-
-        model.resumeAuto()
-        #expect(model.isOverridden(at: t(2)) == false)
-        #expect(model.overrideRemaining(at: t(2)) == nil)
-    }
-
-    @Test("The override countdown is what §11.2 puts on screen")
-    func overrideCountdown() {
-        var model = self.model()
-        model.observe(hr: 100, at: t(0))
-        model.beginOverride(at: t(0))
-
-        #expect(model.overrideRemaining(at: t(0)) == .seconds(180))
-        #expect(model.overrideRemaining(at: t(60)) == .seconds(120))
-        #expect(model.overrideRemaining(at: t(180)) == nil)
-    }
-
-    @Test("A manual zone lock pins the chosen zone and starts the hold")
+    @Test("A manual zone lock pins the chosen zone and stays put")
     func manualZoneLock() {
         var model = self.model()
         model.observe(hr: 100, at: t(0))
 
-        model.lockZone(.z4, at: t(1))
+        model.lockZone(.z4)
         #expect(model.currentZone == .z4)
-        #expect(model.isOverridden(at: t(1)) == true)
+        #expect(model.isOverridden)
 
-        hold(&model, bpm: 60, from: 2, to: 170)
-        #expect(model.targetZone(at: t(170)) == .z4)
+        hold(&model, bpm: 60, from: 2, to: 600)
+        #expect(model.targetZone(at: t(600)) == .z4)
     }
 
     // MARK: - Traces

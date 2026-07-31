@@ -63,7 +63,6 @@ struct SessionView: View {
                 zone: coordinator.zone,
                 pendingZone: coordinator.pendingZone,
                 isOverridden: coordinator.isOverridden,
-                overrideRemaining: coordinator.overrideRemaining,
                 overrideCause: coordinator.overrideCause?.label,
                 onLock: { coordinator.lockZone($0) },
                 onResume: { coordinator.resumeAuto() }
@@ -238,8 +237,8 @@ struct SessionView: View {
                 Text("mean \(Int(mean.rounded())) bpm")
             }
             Text("\(coordinator.sampleCount) samples in window")
-            if let remaining = ZoneRow.coarse(coordinator.overrideRemaining) {
-                Text("override \(remaining)")
+            if coordinator.isOverridden {
+                Text("auto control paused")
             }
         }
         .font(.caption2)

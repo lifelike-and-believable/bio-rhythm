@@ -15,8 +15,9 @@
 ///    before it is eligible. Kills spikes.
 /// 3. **Step limit (§6.5).** At most `MAX_STEP` zones per commit. A sprint
 ///    from Z1 to Z4 walks up over three tracks.
-/// 4. **Override (§6.6).** After manual input, auto-control is suspended for
-///    `OVERRIDE_HOLD` and the zone is pinned.
+/// 4. **Override (§6.6).** After manual input, auto-control is suspended and
+///    the zone is pinned until the owner hands control back. No expiry — see
+///    `isOverridden`.
 ///
 /// ## Two states, not one
 ///
@@ -46,8 +47,9 @@
 ///   observation resets the dwell timer rather than letting it accrue through
 ///   the gap. Conservative: it can only delay a zone change, never cause one.
 /// - **Override resets dwell.** Otherwise a change confirmed during the hold
-///   would fire the instant the hold lifted, which is most of the way to not
-///   having had a hold. Twenty seconds of fresh confirmation is the cost.
+///   would fire the instant control was handed back, which is most of the way
+///   to not having had a hold. Twenty seconds of fresh confirmation is the
+///   cost.
 public struct ZoneModel: Hashable, Sendable {
     public let configuration: ControlConfiguration
     /// Cached — `ControlConfiguration.boundaries` builds a new value each time,
@@ -55,7 +57,7 @@ public struct ZoneModel: Hashable, Sendable {
     public let boundaries: ZoneBoundaries
 
     /// The zone the music currently reflects. Nil until the first observation
-    /// seeds it. Changes only in `recordCommit(at:)` and `lockZone(_:at:)`.
+    /// seeds it. Changes only in `recordCommit(at:)` and `lockZone(_:)`.
     public private(set) var currentZone: Zone?
 
     /// The zone §6.3 has been proposing, and since when. Nil when the proposal
@@ -63,8 +65,20 @@ public struct ZoneModel: Hashable, Sendable {
     public private(set) var candidate: Zone?
     public private(set) var candidateSince: Instant?
 
-    /// §6.6. Nil when auto-control is live.
-    public private(set) var overrideUntil: Instant?
+    /// §6.6. True until the owner hands control back.
+    ///
+    /// **No expiry.** §6.6 originally held the zone for `OVERRIDE_HOLD` and
+    /// then released it. The timeout turned out to earn its place only on the
+    /// *inferred* trigger — a detected skip can be a false positive, and one
+    /// that never lapsed would disable auto-control for a whole session. On a
+    /// deliberate zone lock it does the opposite of good: 180 s is an
+    /// arbitrary interval, and the system resumes changing the music at a
+    /// moment the owner did not pick and may not notice.
+    ///
+    /// A persistent lock glyph guards against forgetting better than a silent
+    /// expiry does — the glyph is on screen at every glance; the timeout is
+    /// invisible until it fires.
+    public private(set) var isOverridden: Bool = false
 
     public init(configuration: ControlConfiguration) {
         self.configuration = configuration
@@ -126,35 +140,29 @@ public struct ZoneModel: Hashable, Sendable {
 
     // MARK: - §6.6 Override
 
-    public func isOverridden(at now: Instant) -> Bool {
-        guard let overrideUntil else { return false }
-        return now < overrideUntil
-    }
-
-    /// Remaining hold, for the §11.2 countdown. Nil when auto-control is live.
-    public func overrideRemaining(at now: Instant) -> Duration? {
-        guard let overrideUntil, now < overrideUntil else { return nil }
-        return overrideUntil - now
-    }
-
-    /// Suspends auto-control for `OVERRIDE_HOLD`. §6.6 lists the three
-    /// triggers: a detected manual skip, a manual zone change, and a manual
-    /// pause/resume cycle.
-    public mutating func beginOverride(at now: Instant) {
-        overrideUntil = now + configuration.overrideHold
+    /// Suspends auto-control until `resumeAuto()`. §6.6's triggers are a
+    /// manual zone change and — once R-10 exists (D-7) — a detected skip.
+    ///
+    /// The pause/resume trigger went with the timeout. A paused workout
+    /// produces no samples, so §6.2's stale path already holds the zone; and
+    /// with no expiry a pause would have suspended auto-control permanently.
+    /// watchOS auto-pauses workouts, so that would have happened without the
+    /// owner doing anything at all.
+    public mutating func beginOverride() {
+        isOverridden = true
         clearCandidate()
     }
 
-    /// §6.6's "resume auto" action. Clears the hold immediately.
+    /// §6.6's "resume auto" action, and now the only way out of a hold.
     public mutating func resumeAuto() {
-        overrideUntil = nil
+        isOverridden = false
     }
 
     /// A manual zone change: pins the zone *and* starts the hold, so the model
     /// does not immediately argue with the choice.
-    public mutating func lockZone(_ zone: Zone, at now: Instant) {
+    public mutating func lockZone(_ zone: Zone) {
         currentZone = zone
-        beginOverride(at: now)
+        beginOverride()
     }
 
     // MARK: - Advancing the model
@@ -179,7 +187,7 @@ public struct ZoneModel: Hashable, Sendable {
         }
 
         // §6.6: nothing accumulates while the hold is in force.
-        guard !isOverridden(at: now) else {
+        guard !isOverridden else {
             clearCandidate()
             return current
         }
@@ -205,7 +213,7 @@ public struct ZoneModel: Hashable, Sendable {
     public func targetZone(at now: Instant) -> Zone? {
         guard let current = currentZone else { return nil }
         // §6.6: "targetZone = currentZone unconditionally".
-        guard !isOverridden(at: now) else { return current }
+        guard !isOverridden else { return current }
         guard let candidate, dwellSatisfied(at: now) else { return current }
         return stepLimited(candidate, from: current)
     }

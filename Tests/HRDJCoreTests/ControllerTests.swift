@@ -305,7 +305,7 @@ struct ControllerTests {
         await rig.controller.resumeAuto()
         #expect(rig.recorder.events(.overrideCleared).count == 1)
         let model = await rig.controller.zoneModel
-        #expect(model.isOverridden(at: rig.clock.now) == false)
+        #expect(model.isOverridden == false)
     }
 
     @Test("A manual zone lock takes effect immediately")
@@ -387,7 +387,7 @@ struct ControllerTests {
         degraded = await rig.controller.isDegraded
         #expect(degraded == false)
         let model = await rig.controller.zoneModel
-        #expect(model.isOverridden(at: rig.clock.now) == false)
+        #expect(model.isOverridden == false)
 
         rig.playback.state = state(progressMillis: 0)
         await rig.controller.ingest(HRSample(at: rig.clock.now, bpm: 100))

@@ -47,6 +47,14 @@ public struct ControlConfiguration: Hashable, Sendable {
 
     // MARK: Override (§6.6)
 
+    /// **Dormant.** §6.6's hold no longer expires — `ZoneModel` explains why —
+    /// so nothing reads this today.
+    ///
+    /// Kept rather than deleted because the timeout was never wrong in general,
+    /// only wrong for a *deliberate* lock. When R-10 skip detection lands
+    /// (D-7), an inferred override is exactly the case that wants an expiry: a
+    /// false positive that never lapsed would disable auto-control for the rest
+    /// of a session. The constant will be waiting, at the value §6.7 gives it.
     public var overrideHold: Duration = .seconds(180)
 
     // MARK: Commit timing (§6.7), all relative to the estimated track end

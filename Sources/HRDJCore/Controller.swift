@@ -135,9 +135,9 @@ public actor Controller {
     public func registerManualInput(zone: Zone? = nil) async {
         let now = clock.now
         if let zone {
-            zoneModel.lockZone(zone, at: now)
+            zoneModel.lockZone(zone)
         } else {
-            zoneModel.beginOverride(at: now)
+            zoneModel.beginOverride()
         }
         var record = Decision(at: now, event: .overrideSet)
         record.currentZone = zoneModel.currentZone
@@ -365,7 +365,7 @@ public actor Controller {
         record.dwellSeconds = zoneModel.dwellElapsed(at: now)?.inSeconds
         record.eligibleZone = zoneModel.candidate
         record.targetZone = zoneModel.targetZone(at: now)
-        record.overrideActive = zoneModel.isOverridden(at: now)
+        record.overrideActive = zoneModel.isOverridden
         record.trackID = trackClock.trackID
         record.trackRemainingMillis = trackClock.remaining(at: now).map { Int($0.inSeconds * 1000) }
         return record
