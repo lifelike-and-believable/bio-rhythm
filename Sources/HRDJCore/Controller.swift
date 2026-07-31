@@ -105,11 +105,27 @@ public actor Controller {
         await sink.record(Decision(at: clock.now, event: .sessionStart))
     }
 
+    /// Ends the session and returns the controller to its initial state.
+    ///
+    /// Everything session-scoped goes, not just the per-track machinery: the
+    /// zone model carries `currentZone` and any override, `recentArtists` is
+    /// §8's clustering history, and the DEGRADED counters describe a network
+    /// that was failing some time ago. A second session started on the same
+    /// instance inheriting any of that would produce a trace that cannot be
+    /// read on its own, which defeats the purpose of M2's logs.
+    ///
+    /// Pools are deliberately not touched — they belong to `PoolManager`, and
+    /// §7.4 refetches them at session start.
     public func stop() async {
         await sink.record(Decision(at: clock.now, event: .sessionEnd))
         trackClock.reset()
         scheduler.reset()
         window.removeAll()
+        zoneModel = ZoneModel(configuration: configuration)
+        recentArtists.removeAll()
+        lastLoggedZone = nil
+        consecutiveFailures = 0
+        isDegraded = false
     }
 
     // MARK: - §6.6 manual input
@@ -166,6 +182,10 @@ public actor Controller {
 
         await advanceZone(at: now)
         await evaluateCommit(observation: observation, at: now)
+        // After the commit, not before: `ZoneModel.currentZone` moves in
+        // `recordCommit`, so a check that ran earlier in the tick would only
+        // ever catch the seeding.
+        await logZoneChangeIfNeeded(at: now)
 
         return scheduler.nextEvaluation(remaining: trackClock.remaining(at: now), at: now)
             ?? configuration.heartbeatPoll
@@ -175,20 +195,26 @@ public actor Controller {
 
     private func advanceZone(at now: Instant) async {
         let observed = window.observedHR(at: now)
-        let before = zoneModel.currentZone
         zoneModel.observe(hr: observed, at: now)
 
-        guard observed != nil else {
-            // §6.2/§11.4: the zone is held, and the gap is worth a line — a
-            // trace with no HR and no explanation is unreadable later.
-            await sink.record(baseRecord(event: .hrSampleGap, at: now))
-            return
-        }
+        guard observed == nil else { return }
+        // §6.2/§11.4: the zone is held, and the gap is worth a line — a trace
+        // with no HR and no explanation is unreadable later.
+        await sink.record(baseRecord(event: .hrSampleGap, at: now))
+    }
 
-        // Logged on the edge, not on every tick. `currentZone` moves only at a
-        // commit, so this fires once per actual change.
+    /// Emits `zone_change` when the zone actually moved, comparing against the
+    /// last value *logged* rather than the value at the top of this tick.
+    ///
+    /// The distinction is the whole bug this replaced. `ZoneModel.currentZone`
+    /// changes inside `recordCommit`, which runs in `evaluateCommit` — so a
+    /// before/after comparison around `observe` sees no movement ever, and the
+    /// single most important event in an M2 trace never got written. Comparing
+    /// across ticks catches commit-driven transitions, seeding, and manual
+    /// locks alike.
+    private func logZoneChangeIfNeeded(at now: Instant) async {
         let current = zoneModel.currentZone
-        guard current != before else { return }
+        guard current != lastLoggedZone else { return }
         lastLoggedZone = current
         await sink.record(baseRecord(event: .zoneChange, at: now))
     }

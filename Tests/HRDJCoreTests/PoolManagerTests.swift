@@ -96,24 +96,44 @@ struct PoolManagerTests {
         #expect(recycled?.pool == .z3)
     }
 
-    @Test("Clearing is scoped to the exhausted pool, not the whole session")
-    func clearingIsScoped() async {
-        // Z2 and Z3 share a track. Exhausting Z3 must not make it eligible in
-        // Z2 again — the cross-pool deduplication is the point of a
-        // session-wide set, and a global clear would undo it.
+    @Test("Recycling one pool does not free a track played from another")
+    func clearingIsScopedByProvenance() async {
+        // The case that matters, and the one an earlier version of this test
+        // missed entirely: a track that sits in *both* pools. Clearing keyed on
+        // pool membership would free `shared` when Z3 was exhausted, even
+        // though it was played from Z2 — punching a hole in the cross-pool
+        // deduplication that is the whole point of a session-wide set.
         let manager = self.manager()
         let shared = track("shared")
-        await manager.load([shared], into: .z2)
-        await manager.load([track("z3only")], into: .z3)
+        await manager.load([shared, track("z2only")], into: .z2)
+        await manager.load([shared, track("z3only")], into: .z3)
 
+        // Played from Z2.
         #expect(await manager.select(from: .z2, avoidingArtists: [])?.track.id == "shared")
+        // Z3 therefore offers only its own track...
         #expect(await manager.select(from: .z3, avoidingArtists: [])?.track.id == "z3only")
+        // ...and once that is spent, Z3 has nothing left it may recycle.
+        // `shared` was not played from Z3, so freeing it here would be wrong.
+        let recycled = await manager.select(from: .z3, avoidingArtists: [])
+        #expect(recycled?.track.id == "z3only")
+        #expect(recycled?.clearedPlayedSet == true)
 
-        // Exhaust Z3 and force a clear.
-        _ = await manager.select(from: .z3, avoidingArtists: [])
-        // `shared` belongs to Z2, so Z3's clear must have left it played.
+        // The proof: Z2 still considers `shared` played, and offers its other
+        // track rather than recycling.
         let z2 = await manager.select(from: .z2, avoidingArtists: [])
-        #expect(z2?.clearedPlayedSet == true)
+        #expect(z2?.track.id == "z2only")
+        #expect(z2?.clearedPlayedSet == false)
+    }
+
+    @Test("A pool with nothing played from it has nothing to recycle")
+    func nothingToRecycle() async {
+        let manager = self.manager()
+        await manager.load([track("a")], into: .z2)
+        await manager.load([], into: .z3)
+        // Z3 is empty and has never been selected from, so its clear must be a
+        // no-op rather than a fresh start — otherwise the fallback below would
+        // be reached for the wrong reason.
+        #expect(await manager.select(from: .z3, avoidingArtists: [])?.pool == .z2)
     }
 
     @Test("A truly empty pool falls back one zone toward Z2 and says so")

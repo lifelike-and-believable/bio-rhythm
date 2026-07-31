@@ -334,6 +334,68 @@ struct ControllerTests {
         #expect(commit?.trackRemainingMillis != nil)
     }
 
+    @Test("A commit-driven zone change is logged")
+    func zoneChangeIsLogged() async {
+        // The event M2's tuning is largely read through. `currentZone` moves
+        // inside `recordCommit`, so a check that ran before the commit — as an
+        // earlier version did — saw no movement ever and logged only seeding.
+        let rig = self.rig()
+
+        // Seed at Z1, then climb into Z2 and let a commit land.
+        for second in 0..<200 {
+            rig.playback.state = state(progressMillis: second * 1000)
+            await rig.controller.ingest(HRSample(at: rig.clock.now, bpm: second < 5 ? 100 : 130))
+            await rig.controller.tick()
+            rig.clock.advance(.seconds(1))
+        }
+
+        let changes = rig.recorder.events(.zoneChange)
+        // One for the seed, one for the commit that moved Z1 → Z2.
+        #expect(changes.count == 2)
+        #expect(changes.first?.currentZone == .z1)
+        #expect(changes.last?.currentZone == .z2)
+    }
+
+    @Test("A steady session logs the seed and nothing more")
+    func zoneChangeIsLoggedOnTheEdge() async {
+        let rig = self.rig()
+        await run(rig, seconds: 200, bpm: 120)
+        // Two hundred ticks, one zone. Logging per tick would bury the trace.
+        #expect(rig.recorder.events(.zoneChange).count == 1)
+    }
+
+    @Test("Stopping clears session state so a second run does not inherit it")
+    func stopClearsSessionState() async {
+        let rig = self.rig()
+        await run(rig, seconds: 200, bpm: 160)         // climbs into Z4 territory
+        await rig.controller.registerManualInput()      // and takes an override
+        rig.playback.failures = 3
+        for _ in 0..<3 {
+            await rig.controller.tick()
+            rig.clock.advance(.seconds(30))
+        }
+        var degraded = await rig.controller.isDegraded
+        #expect(degraded)
+
+        await rig.controller.stop()
+
+        // A second session on the same instance must start from nothing. The
+        // zone, the override, §8's artist history and the DEGRADED state all
+        // describe a workout that is over.
+        let zone = await rig.controller.zoneModel.currentZone
+        #expect(zone == nil)
+        degraded = await rig.controller.isDegraded
+        #expect(degraded == false)
+        let model = await rig.controller.zoneModel
+        #expect(model.isOverridden(at: rig.clock.now) == false)
+
+        rig.playback.state = state(progressMillis: 0)
+        await rig.controller.ingest(HRSample(at: rig.clock.now, bpm: 100))
+        await rig.controller.tick()
+        let reseeded = await rig.controller.zoneModel.currentZone
+        #expect(reseeded == .z1)
+    }
+
     @Test("Session start and end bracket the log")
     func sessionBrackets() async {
         let rig = self.rig()

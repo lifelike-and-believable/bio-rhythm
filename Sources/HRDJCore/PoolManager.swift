@@ -66,8 +66,17 @@ public struct PoolSelection: Hashable, Sendable {
 public actor PoolManager: PoolSelecting {
     private var pools: [PoolID: [TrackRef]] = [:]
     /// Session-wide. §8: a track played from Z2 is ineligible in Z3 for the
-    /// rest of the session, so this is keyed by URI and not by pool.
+    /// rest of the session, so eligibility is keyed by URI and not by pool.
     private var playedURIs: Set<String> = []
+    /// Which pool each played URI was actually played *from*.
+    ///
+    /// Provenance, not membership. Recycling one pool must not free a track
+    /// that was played from another, and current pool contents cannot answer
+    /// that question: a track present in both Z2 and Z3 looks identical from
+    /// either side. Inferring provenance from membership silently punched a
+    /// hole in the cross-pool deduplication — a track played from Z2 became
+    /// eligible again the moment Z3 was exhausted.
+    private var playedByPool: [PoolID: Set<String>] = [:]
     private var blocklist: Set<String>
     private var random: any RandomSource
 
@@ -101,8 +110,9 @@ public actor PoolManager: PoolSelecting {
         blocklist.insert(uri)
     }
 
-    public func markPlayed(_ uri: String) {
+    public func markPlayed(_ uri: String, from pool: PoolID) {
         playedURIs.insert(uri)
+        playedByPool[pool, default: []].insert(uri)
     }
 
     public func playedCount() -> Int { playedURIs.count }
@@ -117,7 +127,7 @@ public actor PoolManager: PoolSelecting {
     /// touches nothing that can fail or suspend, and tests read better for it.
     public func select(from pool: PoolID, avoidingArtists: [String]) -> PoolSelection? {
         if let track = pick(from: pool, avoidingArtists: avoidingArtists) {
-            playedURIs.insert(track.uri)
+            markPlayed(track.uri, from: pool)
             return PoolSelection(track: track, pool: pool)
         }
 
@@ -127,7 +137,7 @@ public actor PoolManager: PoolSelecting {
         // cross-pool deduplication is the point of a session-wide set.
         let cleared = clearPlayed(for: pool)
         if cleared, let track = pick(from: pool, avoidingArtists: avoidingArtists) {
-            playedURIs.insert(track.uri)
+            markPlayed(track.uri, from: pool)
             return PoolSelection(track: track, pool: pool, clearedPlayedSet: true)
         }
 
@@ -139,7 +149,7 @@ public actor PoolManager: PoolSelecting {
         guard let track = pick(from: neighbour, avoidingArtists: avoidingArtists) else {
             return nil
         }
-        playedURIs.insert(track.uri)
+        markPlayed(track.uri, from: neighbour)
         return PoolSelection(track: track, pool: neighbour, fellBackFrom: pool)
     }
 
@@ -163,15 +173,20 @@ public actor PoolManager: PoolSelecting {
         return candidates[random.next(upperBound: candidates.count)]
     }
 
-    /// Removes this pool's tracks from the played-set. Returns whether anything
-    /// was actually removed, so a caller cannot mistake "cleared nothing" for a
-    /// fresh start.
+    /// Frees the tracks that were played *from* this pool. Returns whether
+    /// anything was actually removed, so a caller cannot mistake "cleared
+    /// nothing" for a fresh start.
+    ///
+    /// Keyed on provenance rather than on current membership. Those differ
+    /// exactly when a track sits in two pools, which §8 says to expect — and
+    /// in that case membership frees a track the owner has not yet exhausted
+    /// the pool of.
     @discardableResult
     private func clearPlayed(for pool: PoolID) -> Bool {
-        let uris = Set((pools[pool] ?? []).map(\.uri))
-        let before = playedURIs.count
+        guard let uris = playedByPool[pool], !uris.isEmpty else { return false }
         playedURIs.subtract(uris)
-        return playedURIs.count != before
+        playedByPool[pool] = []
+        return true
     }
 
     /// One zone toward Z2, §8's "fall back one zone toward Z2". Z2 itself has
