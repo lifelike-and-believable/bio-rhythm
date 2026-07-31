@@ -32,6 +32,14 @@ struct ZoneRow: View {
     let pendingZone: Zone?
     let isOverridden: Bool
     let overrideCause: String?
+    /// Always-On. Renders the reduced-luminance variant and drops every
+    /// interaction, because there are none to have: raising the wrist wakes
+    /// the screen before a touch or a Crown turn can land.
+    ///
+    /// `let` with no default rather than `var` with one: a constant carrying a
+    /// default value is excluded from the memberwise initialiser entirely, so
+    /// it could not be passed at all. One call site, and it already passes it.
+    let isDimmed: Bool
     let onLock: @MainActor (Zone) -> Void
     let onResume: @MainActor () -> Void
 
@@ -40,6 +48,38 @@ struct ZoneRow: View {
     @FocusState private var crownFocus: Bool
 
     var body: some View {
+        if isDimmed {
+            dimmed
+        } else {
+            interactive
+        }
+    }
+
+    /// §11.2's Always-On zone: **the name in real type, and no capsules.**
+    ///
+    /// Five thin capsules with one filled in an accent colour is a good
+    /// full-brightness affordance and a poor dim one. At reduced luminance and
+    /// reduced colour, "filled accent" and "grey" converge toward each other,
+    /// and counting position on ~29 pt capsules in low light is the wrong thing
+    /// to ask of someone glancing at their wrist. A word is unambiguous at any
+    /// brightness.
+    private var dimmed: some View {
+        HStack(spacing: 4) {
+            Text(zone?.label ?? "—")
+                .font(.system(size: 17, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+            if isOverridden {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var interactive: some View {
         VStack(alignment: .leading, spacing: 4) {
             capsules
             label
@@ -155,10 +195,19 @@ struct ZoneRow: View {
         if isOverridden {
             parts.append("locked")
             if let overrideCause { parts.append(overrideCause) }
-            parts.append("double tap to resume automatic control")
-        } else {
-            parts.append("double tap to choose a zone with the crown")
         }
+
+        // Always-On has no interactions to offer, so it must not describe any.
+        // Raising the wrist wakes the screen before a touch could land, which
+        // means an instruction here is not merely useless but wrong: it names a
+        // gesture that cannot happen in the state the label is read in.
+        guard !isDimmed else { return parts.joined(separator: ", ") }
+
+        parts.append(
+            isOverridden
+                ? "double tap to resume automatic control"
+                : "double tap to choose a zone with the crown"
+        )
         return parts.joined(separator: ", ")
     }
 }

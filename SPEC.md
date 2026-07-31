@@ -461,6 +461,8 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 No animations that run continuously — a workout screen should not carry moving decoration, and it is unreadable at a glance if it does.
 
+Every element whose interactivity varies by state carries a VoiceOver label and traits that vary with it. See CLAUDE.md; this has been the repeated defect in this UI, not an occasional one.
+
 **The battery bar is parity, not minimalism.** This app should cost about what any other workout app costs for the same session, and no effort is owed beyond that. Earlier drafts treated battery as a reason to decline features; it is not. If a capability makes the workout record better and costs roughly what Apple's own Workout app costs for it — GPS-derived distance being the case in point — take it. What the rule still forbids is spending battery on decoration.
 
 #### Why two pages rather than one scrolling screen
