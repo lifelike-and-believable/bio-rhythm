@@ -1,4 +1,5 @@
 import SwiftUI
+import HRDJCore
 import SpotifyKit
 
 /// The now-playing half of the §11.2 screen: title and artist, truncated.

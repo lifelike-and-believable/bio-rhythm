@@ -1,3 +1,5 @@
+import HRDJCore
+
 /// The concrete client. Conforms to all three protocols in §5.3.
 ///
 /// The separation only works because of how this type is *injected*, not

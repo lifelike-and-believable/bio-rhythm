@@ -1,3 +1,5 @@
+// Standard library only. See CLAUDE.md §2.
+
 /// SPEC.md §5.3 — structural enforcement of the never-interrupt guarantee (R-2).
 ///
 /// Three protocols, deliberately separated. `Controller.init` (M2) accepts
@@ -6,6 +8,18 @@
 ///
 /// Do not add transport methods to `PlaybackReading` or `PlaybackQueueing`.
 /// That is CLAUDE.md non-negotiable #1 and it is the whole mechanism.
+///
+/// **These live in `HRDJCore`, not `SpotifyKit` — the resolution of D-1.**
+/// §5.2's file layout put them in `SpotifyKit`, which cannot survive contact
+/// with M2: `Controller` lives here and has to name its own dependency, and
+/// CLAUDE.md non-negotiable #2 forbids this module importing anything but the
+/// standard library. Dependency inversion resolves it. `SpotifyKit` already
+/// depends on `HRDJCore` and now conforms to these; nothing about the
+/// separation in §5.3 changes, only which module declares it.
+///
+/// Every type here is deliberately free of Spotify vocabulary beyond the URI
+/// strings themselves. A different backend would conform to the same three
+/// protocols, which is what §15 means by keeping the rewrite contained.
 
 public struct TrackURI: Hashable, Sendable, RawRepresentable, CustomStringConvertible {
     public let rawValue: String

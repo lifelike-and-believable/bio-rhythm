@@ -7,7 +7,8 @@ import SpotifyKit
 /// The controller does not exist until M2, so these tests cover the mechanism
 /// it will depend on rather than the controller itself. When `Controller`
 /// lands, the I6 test belongs next to it and should assert the same thing
-/// about its actual dependency.
+/// about its actual dependency — and it will be able to, because D-1 is now
+/// settled and the protocols live in `HRDJCore` alongside the controller.
 @Suite("Protocol separation")
 struct ProtocolSeparationTests {
     private func makeClient(_ transport: FakeTransport) -> SpotifyPlayerClient {

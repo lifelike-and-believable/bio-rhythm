@@ -53,8 +53,10 @@ Nothing has run on a watch.
   continuous HR.
 
 Verification checklist §12 is unanswered — all six still open. `docs/verification.md`
-records that, plus three design questions M0 surfaced; **D-1 (where the playback
-protocols live) has to be settled before M2 starts.**
+records that, plus three design questions M0 surfaced. **D-1 is settled: the
+playback protocols live in `Sources/HRDJCore/Playback.swift` and `SpotifyKit`
+conforms to them.** §5.2/§5.3 were amended to match. D-2 and D-3 are open and
+neither blocks M2.
 
 Not started: `ZoneModel` hysteresis/dwell/step-limit, `TrackClock`,
 `CommitScheduler`, `PoolManager`, `Controller`. The zone shown on screen in M1

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import HRDJCore
 @testable import SpotifyKit
 
 /// Decoding against **captured** responses. SPEC.md §14.3.

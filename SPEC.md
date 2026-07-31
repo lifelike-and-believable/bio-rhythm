@@ -142,6 +142,7 @@ Prompted Playlists are an in-app Premium **beta** feature with usage limits that
 │   ├── HRDJCore/                     # NO HealthKit, NO SwiftUI, NO URLSession
 │   │   ├── Clock.swift               # protocol Clock { var now: Instant }
 │   │   ├── Models.swift              # Zone, HRSample, TrackRef, PoolID, Decision
+│   │   ├── Playback.swift            # PlaybackReading / PlaybackQueueing / PlaybackTransport
 │   │   ├── HRWindow.swift            # ring buffer + trailing statistics
 │   │   ├── ZoneModel.swift           # boundaries, hysteresis, dwell, step limit
 │   │   ├── TrackClock.swift          # boundary estimation from progress/duration
@@ -152,8 +153,7 @@ Prompted Playlists are an in-app Premium **beta** feature with usage limits that
 │       ├── Auth/                     # PKCE, refresh, TokenStore protocol
 │       ├── Endpoints/                # PlayerAPI, PlaylistAPI
 │       ├── DTOs/                     # Codable, matching post-Feb-2026 field names
-│       ├── RateLimiter.swift
-│       └── Protocols.swift           # PlaybackReading / PlaybackQueueing / PlaybackTransport
+│       └── RateLimiter.swift         # (conforms to the protocols declared in HRDJCore)
 ├── Tests/
 │   ├── HRDJCoreTests/
 │   │   └── Fixtures/                 # synthetic HR traces as JSON
@@ -189,6 +189,8 @@ public protocol PlaybackTransport {
 ```
 
 `Controller.init` accepts `PlaybackReading & PlaybackQueueing` and nothing else. The concrete `SpotifyPlayerClient` conforms to all three, but the controller's dependency is declared as the narrow composition, so a skip call from control logic is a compile error rather than a bug. A unit test asserts the controller's dependency type does not conform to `PlaybackTransport`.
+
+The three protocols are **declared in `HRDJCore`** and conformed to in `SpotifyKit`, which is the reverse of what an earlier draft of §5.2 showed. `Controller` lives in `HRDJCore` and has to name its own dependency type; `HRDJCore` may not import `SpotifyKit`. Dependency inversion is the only arrangement that satisfies both. Nothing about the separation above changes — only which module declares it. See `docs/verification.md` D-1.
 
 ---
 

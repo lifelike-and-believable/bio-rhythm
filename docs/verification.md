@@ -37,28 +37,27 @@ contained fix:
 Recorded here rather than resolved unilaterally, per CLAUDE.md ("if a request
 conflicts with SPEC.md, say so rather than silently diverging").
 
-### D-1. Where do the playback protocols live? — blocks M2
+### D-1. Where do the playback protocols live? — **settled, option 1**
 
-SPEC.md §5.2 puts `Protocols.swift` in `SpotifyKit`. CLAUDE.md non-negotiable
+SPEC.md §5.2 put `Protocols.swift` in `SpotifyKit`. CLAUDE.md non-negotiable
 #2 says `HRDJCore` imports nothing but the standard library. At M2 the
 `Controller` lives in `HRDJCore` and its dependency is
 `PlaybackReading & PlaybackQueueing` — which it cannot name without importing
 `SpotifyKit`. The two rules collide the moment the controller exists.
 
-M0 follows §5.2 literally, because at M0 only `SpotifyKit` and the app targets
-touch the protocols and nothing is foreclosed. Before M2 starts, pick one:
+Three options were on the table: move the protocols into `HRDJCore`; declare
+narrow equivalents there and adapt in the app layer; or let `HRDJCore` import
+`SpotifyKit` (which would also have made the existing dependency circular).
 
-1. **Move the protocols into `HRDJCore`**, and have `SpotifyKit` conform to
-   them. Dependency inversion, keeps `HRDJCore` pure, contradicts §5.2's file
-   layout only.
-2. **Declare narrow equivalents in `HRDJCore`** and adapt in the app layer.
-   Preserves both documents exactly, at the cost of a duplicate protocol pair
-   and an adapter.
-3. **Let `HRDJCore` import `SpotifyKit`.** Cheapest, and gives up
-   non-negotiable #2 — note this would also make `SpotifyKit`'s existing
-   dependency on `HRDJCore` circular.
+**Resolved 2026-07-31 by the owner: option 1.** The protocols and their value
+types now live in `Sources/HRDJCore/Playback.swift`; `SpotifyKit` conforms to
+them rather than declaring them. §5.2 and §5.3 were amended to match — this is
+the one place the spec was changed rather than followed, and it was changed
+deliberately. `SpotifyPlayerClient` still conforms to all three, and the
+narrow-composition injection in `SpotifyStack` is unchanged, so R-2 and the
+§5.3 mechanism are untouched.
 
-Option 1 looks right, but it is the owner's call.
+M2 is no longer blocked on this.
 
 ### D-2. Invariant I6 cannot be tested the way §5.3 describes
 
