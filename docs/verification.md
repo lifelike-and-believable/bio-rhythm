@@ -40,6 +40,17 @@ Three reasons not to treat this as settled:
 - Library membership and ownership are different things, and the API may treat
   a saved-into-library playlist as readable regardless.
 
+**2026-07-31, follow-up.** The Spotify app's byline for that playlist reads
+*"Prompted by <owner>"*. That is a third byline class, distinct from both
+*"By <user>"* (user-created) and *"By Spotify"* (editorial), and it does not
+settle the question — it is equally consistent with "Spotify owns this object
+and credits your prompt" and with "you own it and Spotify notes how it was
+made". Taken together with the `37i9dQZF1` ID, the concern is neither confirmed
+nor removed.
+
+The API's `owner` field on `GET /v1/playlists/{id}` is the thing that decides
+it, and that is one request away for anyone holding a token.
+
 **It does not change what to do, only how much it matters.** Run
 `Scripts/capture-fixtures.sh` against one of the real pools. A populated
 `items.items[].item` settles V-1 in the good direction and this note becomes a
