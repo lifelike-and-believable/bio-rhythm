@@ -131,9 +131,14 @@ In the Spotify mobile app: open the Prompted Playlist → share → copy link. T
 ID is the segment after `/playlist/` and before the `?`:
 
 ```
-https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
-                                  └──────── this ───────┘
+https://open.spotify.com/playlist/<22 characters>?si=…
+                                  └──── this ────┘
 ```
+
+The example used to be a real ID here, and it was Spotify's own *Today's Top
+Hits*. That is a bad thing to illustrate with, given that V-1 turns entirely on
+who **owns** the playlist — see the note under V-1 in
+[`docs/verification.md`](verification.md).
 
 Use a real Prompted Playlist, not an ordinary one. Whether *that specific kind*
 is readable is the entire question.

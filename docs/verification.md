@@ -18,6 +18,39 @@ those areas.
 | V-5 | Watch network reliability without the phone | R-5, DEGRADED thresholds | **Open** | — | Full session on LTE, and on Wi-Fi only, phone powered off. The M0 exit criterion is a weaker version of this and is worth recording here when it passes. |
 | V-6 | Do Prompted Playlist auto-refreshes change IDs or only contents? | §4.5 | **Open** | — | Schedule a daily refresh, compare playlist ID and contents after 48 h. If IDs rotate, R-13 needs a repair flow. |
 
+### Early signal on V-1: the pool IDs look Spotify-owned
+
+**2026-07-31, unconfirmed.** The owner created five Prompted Playlists and the
+Z0 one carries an ID beginning `37i9dQZF1`. That prefix is, as far as anyone
+outside Spotify can tell, the one Spotify uses for playlists **it** generates
+and owns — Discover Weekly, Daily Mix, Release Radar, editorial. User-created
+playlists get IDs without it.
+
+That matters because §4.3 says only playlists *owned by the authenticated user*
+return an `items` object; everything else returns metadata only. If Prompted
+Playlists are saved *into* the user's library but still **owned by Spotify**,
+V-1 fails and §8 needs the duplication fallback — the exact outcome V-1 was
+written to catch.
+
+Three reasons not to treat this as settled:
+
+- The prefix convention is observed, not documented, and Spotify has never
+  promised it means anything.
+- Prompted Playlists are a beta feature (§4.5) and may well be a special case.
+- Library membership and ownership are different things, and the API may treat
+  a saved-into-library playlist as readable regardless.
+
+**It does not change what to do, only how much it matters.** Run
+`Scripts/capture-fixtures.sh` against one of the real pools. A populated
+`items.items[].item` settles V-1 in the good direction and this note becomes a
+footnote. A 200 with `items` null, or a 404, means the duplication fallback in
+`docs/pools.md` is the actual plan, and it is much cheaper to know that before
+`PoolManager` is written than after.
+
+Do not put the pool IDs in the repository. They are not secret, but this
+repository is public and §7e already redacts them out of the captured fixtures;
+committing them to source would undo that for no gain. Configuration is M4.
+
 ## What M0 assumed anyway
 
 Two things in the M0 code are written against §4's description rather than
