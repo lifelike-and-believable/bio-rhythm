@@ -51,6 +51,23 @@ nor removed.
 The API's `owner` field on `GET /v1/playlists/{id}` is the thing that decides
 it, and that is one request away for anyone holding a token.
 
+**2026-07-31, resolved in practice.** The owner can add tracks to the playlist,
+reorder and delete its existing tracks, and rename it, all from the Spotify
+mobile app. Spotify's own editorial and generated playlists permit none of
+those. Whatever the ID namespace suggests, the object behaves as a user-owned
+playlist, and §4.3's rule keys on ownership.
+
+So the structural risk is off the table: §8 can be built as specified, and the
+duplication fallback in `docs/pools.md` is unlikely to be needed. **V-1 stays
+formally open** — it asks whether `/items` actually returns contents, and only
+the capture answers that — but what remains is a question about *field names*,
+which is a DTO fix, not a redesign. `PoolManager` is safe to write against §8.
+
+Worth recording that the `37i9dQZF1` prefix was the weaker signal and reading
+it as decisive would have been wrong. Editability is a direct observation of
+the property §4.3 cares about; the prefix was an inference from a convention
+Spotify never documented.
+
 **It does not change what to do, only how much it matters.** Run
 `Scripts/capture-fixtures.sh` against one of the real pools. A populated
 `items.items[].item` settles V-1 in the good direction and this note becomes a
