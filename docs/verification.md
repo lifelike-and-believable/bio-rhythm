@@ -18,6 +18,67 @@ those areas.
 | V-5 | Watch network reliability without the phone | R-5, DEGRADED thresholds | **Open** | — | Full session on LTE, and on Wi-Fi only, phone powered off. The M0 exit criterion is a weaker version of this and is worth recording here when it passes. |
 | V-6 | Do Prompted Playlist auto-refreshes change IDs or only contents? | §4.5 | **Open** | — | Schedule a daily refresh, compare playlist ID and contents after 48 h. If IDs rotate, R-13 needs a repair flow. |
 
+### Early signal on V-1: the pool IDs look Spotify-owned
+
+**2026-07-31, unconfirmed.** The owner created five Prompted Playlists and the
+Z0 one carries an ID beginning `37i9dQZF1`. That prefix is, as far as anyone
+outside Spotify can tell, the one Spotify uses for playlists **it** generates
+and owns — Discover Weekly, Daily Mix, Release Radar, editorial. User-created
+playlists get IDs without it.
+
+That matters because §4.3 says only playlists *owned by the authenticated user*
+return an `items` object; everything else returns metadata only. If Prompted
+Playlists are saved *into* the user's library but still **owned by Spotify**,
+V-1 fails and §8 needs the duplication fallback — the exact outcome V-1 was
+written to catch.
+
+Three reasons not to treat this as settled:
+
+- The prefix convention is observed, not documented, and Spotify has never
+  promised it means anything.
+- Prompted Playlists are a beta feature (§4.5) and may well be a special case.
+- Library membership and ownership are different things, and the API may treat
+  a saved-into-library playlist as readable regardless.
+
+**2026-07-31, follow-up.** The Spotify app's byline for that playlist reads
+*"Prompted by <owner>"*. That is a third byline class, distinct from both
+*"By <user>"* (user-created) and *"By Spotify"* (editorial), and it does not
+settle the question — it is equally consistent with "Spotify owns this object
+and credits your prompt" and with "you own it and Spotify notes how it was
+made". Taken together with the `37i9dQZF1` ID, the concern is neither confirmed
+nor removed.
+
+The API's `owner` field on `GET /v1/playlists/{id}` is the thing that decides
+it, and that is one request away for anyone holding a token.
+
+**2026-07-31, resolved in practice.** The owner can add tracks to the playlist,
+reorder and delete its existing tracks, and rename it, all from the Spotify
+mobile app. Spotify's own editorial and generated playlists permit none of
+those. Whatever the ID namespace suggests, the object behaves as a user-owned
+playlist, and §4.3's rule keys on ownership.
+
+So the structural risk is off the table: §8 can be built as specified, and the
+duplication fallback in `docs/pools.md` is unlikely to be needed. **V-1 stays
+formally open** — it asks whether `/items` actually returns contents, and only
+the capture answers that — but what remains is a question about *field names*,
+which is a DTO fix, not a redesign. `PoolManager` is safe to write against §8.
+
+Worth recording that the `37i9dQZF1` prefix was the weaker signal and reading
+it as decisive would have been wrong. Editability is a direct observation of
+the property §4.3 cares about; the prefix was an inference from a convention
+Spotify never documented.
+
+**It does not change what to do, only how much it matters.** Run
+`Scripts/capture-fixtures.sh` against one of the real pools. A populated
+`items.items[].item` settles V-1 in the good direction and this note becomes a
+footnote. A 200 with `items` null, or a 404, means the duplication fallback in
+`docs/pools.md` is the actual plan, and it is much cheaper to know that before
+`PoolManager` is written than after.
+
+Do not put the pool IDs in the repository. They are not secret, but this
+repository is public and §7e already redacts them out of the captured fixtures;
+committing them to source would undo that for no gain. Configuration is M4.
+
 ## What M0 assumed anyway
 
 Two things in the M0 code are written against §4's description rather than
@@ -128,3 +189,63 @@ margin is worth the extra constant.
 
 Not blocking: `ZoneModel` does not exist yet, so nothing has been built on the
 answer.
+
+### D-5. Three things §6 does not decide about zone selection — settled in code
+
+`ZoneModel` (§6.3–§6.6) needed answers §6 does not give. Each is recorded here
+because each is visible in the M2 logs and each is cheap to reverse once those
+logs exist.
+
+**Where a session starts.** §6 never says. The first observation seeds
+`currentZone` from the raw §6.1 mapping, with no hysteresis and no dwell.
+The alternative — start everyone at Z1 — would make a session that begins at
+tempo effort walk up over three tracks before the music caught up, which is
+the failure the step limit is supposed to prevent, not cause.
+
+**A gap in the samples breaks dwell.** §6.4 requires the proposal to differ
+from the current zone *continuously* for 20 s. A stale window is not evidence
+of continuity, so a nil observation resets the timer rather than letting it
+accrue through the gap. Conservative in the safe direction: it can only delay a
+zone change, never cause one. Worth checking against `dropout.json` traces —
+if real sensor gaps are frequent enough that zone changes get starved, the
+answer is a grace period, not accrual.
+
+**The override resets dwell.** §6.6 says the target zone is pinned during the
+hold; it does not say whether evidence accumulates underneath. It does not
+here, so when the hold lifts the model needs 20 s of fresh confirmation.
+Otherwise a change confirmed during the hold fires the instant the hold ends,
+which is most of the way to not having had a hold.
+
+**One more, not a decision so much as an observation.** §6.5's step limit is
+redundant as written: §6.3's `rawZone` already returns at most one step from
+the current zone, so with `MAX_STEP = 1` the clamp can never fire. It is
+implemented anyway as the enforcement point for I5 (§7.2), which is a
+guarantee the product rests on and should not depend on a property of a
+different function that a later edit might quietly remove.
+
+### D-6. `SHORT_TRACK_THRESHOLD` read literally contradicts I2 — resolved in `CommitScheduler`
+
+§6.7: "`SHORT_TRACK_THRESHOLD` | 25 s remaining | Commit immediately instead of
+scheduling." §7.2 I2: "No `enqueue` before `estimatedEnd - COMMIT_OPEN`", and
+`COMMIT_OPEN` is 20 s. For a track first seen with 21–25 s left, those two
+sentences ask for opposite things.
+
+**Resolved by waking early rather than committing early.** I2 is kept exactly
+as written — the scheduler will not attempt anything above 20 s remaining — and
+`SHORT_TRACK_THRESHOLD` instead governs *when the controller next looks*.
+
+That is not a workaround; it is the hazard the constant is actually about.
+`HEARTBEAT_POLL` is 30 s, so a track first seen with 23 s left would not be
+looked at again until long after its deadline had passed. Waking 3 s later, at
+the moment the window opens, fixes that completely. Committing 5 s early fixes
+nothing that was broken, and costs an invariant that has a test and that G2
+depends on.
+
+`CommitScheduler.nextEvaluation(remaining:at:)` implements it as
+`min(timeUntilNextSlot, HEARTBEAT_POLL)`, which subsumes the threshold entirely
+— there is no branch on 25 s anywhere in the logic. `startedShort` is recorded
+on the scheduler for the §11.3 log only, so M2 traces can still distinguish
+these tracks when the constants get tuned.
+
+If the literal reading was intended, the change is one line and I2's test has
+to change with it. It should not change quietly.

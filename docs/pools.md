@@ -137,8 +137,8 @@ For each playlist: share → copy link → take the segment between `/playlist/`
 and `?`. Five pools, though two of them may be the same ID.
 
 ```
-https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=…
-                                  └──────── this ───────┘
+https://open.spotify.com/playlist/<22 characters>?si=…
+                                  └──── this ────┘
 ```
 
 Configuration is M4 (R-13 wants all of this editable without a rebuild). Until
