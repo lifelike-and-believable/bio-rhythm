@@ -438,15 +438,43 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 ### 11.2 Watch UI
 
-Minimum viable, glanceable, one screen:
-
-- Current HR, large.
-- Current zone, with every zone shown as a discrete indicator (not a continuous gauge — the system is discrete and the UI should not imply otherwise). Five steps as of §6.1's meditation zone.
-- Now playing: title and artist, truncated.
-- Next committed track, or "deciding" during `OBSERVING`, or a warning glyph in `MISSED` / `DEGRADED`.
-- Long-press: blocklist current track. Digital Crown: manual zone lock.
+**Two horizontally-paged screens, neither of which scrolls.** A glance page that is read-only, and a controls page holding every action.
 
 No animations that run continuously. Battery matters more than polish here.
+
+#### Why two pages rather than one scrolling screen
+
+The Digital Crown is the scroll gesture. §11.2 also wants it for the manual zone lock, and it cannot be both. Removing the scroll frees it — and horizontal paging is the right way to do that, because *vertical* paging consumes the Crown in turn.
+
+The reorganisation earns its place beyond the Crown. It gives every action a labelled home on the controls page, which retires the two gestures nobody can discover: long-press to blocklist, and an unlabelled swipe for "resume auto". Both remain available as shortcuts; neither is the only route any more.
+
+The cost is that ending a workout is one swipe away rather than immediate. Accepted because it is exactly the idiom Apple's own Workout app uses, so the muscle memory already exists.
+
+#### The glance page
+
+Everything needed mid-effort and nothing else. Read-only, which is also what makes it the right thing to show in Always-On.
+
+- **Current HR, large.** The anchor.
+- **The zone row** — every zone as a discrete indicator, never a continuous gauge; the system is discrete and the UI must not imply otherwise. Five steps as of §6.1's meditation zone. Carries the override state (below).
+- **The decision line.** One line, always meaningful: `Deciding…` during `OBSERVING`, `Next: <title>` once committed, `Missed — falling back` in `MISSED`, `Offline — holding` in `DEGRADED`, `No samples — holding zone` during an HR gap.
+- **Now playing:** title and artist, truncated.
+
+No navigation title. The owner knows which app they are in, and it costs roughly 30 pt of the scarcest space on the device.
+
+The decision line replaces two elements an earlier draft listed separately — "next committed track / deciding / warning glyph" and the HR-window diagnostics. Merged, it is always saying something; separate, the committed-track field was empty for about 90 % of every track. Window mean and sample count are diagnostics and belong on the controls page.
+
+#### The controls page
+
+`End workout` · `Resume auto` · `Block this track`, plus window mean, sample count and commit count as diagnostics.
+
+#### The zone row and the override indicator
+
+§6.6 requires an unambiguous override indicator with remaining time and a "resume auto" action. It is **not** a separate element:
+
+- The thing being overridden *is* the zone, so the zone row shows it: the active capsule outlined rather than filled, and a lock glyph beside the label.
+- **The row is the button.** Tapping it clears the hold. Nothing else on screen changes size or position when an override begins or ends.
+
+Screen space is the scarcest resource on a watch. An element meaningful for roughly 5 % of a session is expensive as a permanent row and jarring as one that appears and pushes everything below it down. Restyling a row that is always present costs nothing and cannot be missed, which is what "unambiguous" asks for.
 
 #### The override indicator is a state of the zone row, not a row of its own
 
@@ -470,6 +498,32 @@ A track ends early when it was skipped, but also when the §7.1 estimate drifted
 **The countdown is coarse:** `~3 min`, `~2 min`, `~1 min`, `under a minute`. Four updates rather than 180.
 
 This is a deliberate reading of "with countdown" against "no animations that run continuously" two lines above. The battery argument alone is weak — heart rate already redraws at roughly 1 Hz while the screen is active — but a ticking second hand pulls the eye during effort, and the only question it is asked is "is this nearly over?", which does not need second precision.
+
+#### Manual zone lock, and why the Crown is focus-gated
+
+An always-live Crown that pins a zone and starts a three-minute hold is a hazard: watches get knocked and sleeves catch. watchOS supplies the safety for free — `digitalCrownRotation` delivers input only to a **focused** view.
+
+1. **Tap the zone row.** It takes focus; the capsules brighten.
+2. **Rotate.** The highlighted zone moves.
+3. **Stop.** The zone locks, the override begins, the row restyles to `Locked`.
+4. **Tap again**, at any point, to resume auto.
+
+Tap therefore means one consistent thing throughout: *take or release control of the zone.* An idle Crown does nothing at all.
+
+Note that until R-10 skip detection exists (D-7), this is the **only** way to trigger an override, and therefore the only route to the indicator above.
+
+#### Always-On
+
+Design an explicit reduced-luminance variant keyed on `isLuminanceReduced`, rather than letting the system dim a layout built for full brightness.
+
+- **Survives:** heart rate, zone, override state, decision line.
+- **Dropped:** now playing. Most likely to be stale, least useful with the wrist down.
+- **The capsules are replaced by the zone name in real type.** Five thin capsules with one filled in an accent colour is a good full-brightness affordance and a poor dim one — at reduced luminance and reduced colour, "filled accent" and "grey" converge, and counting position on ~29 pt capsules in low light is the wrong thing to ask. A word is unambiguous at any brightness.
+- **Return to the glance page when luminance drops.** Otherwise dropping the wrist while on the controls page leaves a dimmed `End workout` as the always-on display, which is useless and mildly alarming.
+
+The coarse override countdown above is Always-On-native as a side effect: `~2 min` stays correct for a whole minute, where a ticking `2:47` would be wrong between updates.
+
+**One thing to know rather than fix.** Always-On staleness is a *rendering* property. The workout session keeps delivering samples normally, so `HRWindow` does not report a gap and the §6.2 stale treatment never fires — but the pixels can be a minute old. Nothing distinguishes an Always-On snapshot from a live reading, and no API reports when the system last drew the app. Accepted rather than worked around; recorded because "why did it say 142 when I was clearly at 170" is exactly the kind of thing that erodes trust in a system whose whole job is reacting to heart rate. The refresh budget itself is **V-8**.
 
 ### 11.3 Telemetry
 
@@ -529,6 +583,8 @@ This file is the tuning instrument for §6.7. Treat it as a first-class delivera
 | V-4 | Does a queued track reliably play next when the context is a shuffled playlist? | Enqueue a known URI mid-track, observe boundary | §7.3 — the fallback design depends on queue-over-context precedence |
 | V-5 | Watch network reliability without the phone | Full session on LTE, and on Wi-Fi only, phone powered off | R-5, `DEGRADED` thresholds |
 | V-6 | Do Prompted Playlist auto-refreshes change IDs or only contents? | Schedule a daily refresh, compare playlist ID and contents after 48 h | §4.5. If IDs rotate, configuration must be re-pointed each time and R-13 needs a repair flow. |
+| V-7 | What happens when a workout starts **while this app already holds a session**? | Start a session here, then accept watchOS's auto-workout prompt (or start Apple Workout) and observe | §10, §7.4. V-3 asks the defensive direction; this is the one that bites mid-run. If the session is torn away, the music stops responding with no user-visible cause — the worst available failure. |
+| V-8 | How often does Always-On actually redraw during an active workout session? | Run a session, drop the wrist, compare the displayed HR against the log at known times | §11.2. Decides whether the decision line belongs in Always-On at all: at a once-a-minute budget, `Next: <title>` may be describing the previous track. |
 
 Record answers in `/docs/verification.md` with dates. Several are behaviour that is undocumented and may change.
 

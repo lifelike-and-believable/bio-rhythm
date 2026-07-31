@@ -120,16 +120,25 @@ as diffs.
     producing traces, renumbering makes sessions incomparable and a future zone
     would have to be appended instead.
 
-- **2026-07-31 — the override indicator became a state of the zone row**
-  (§11.2). Owner's decision, from a UX pass. Two parts:
-  - **Not a separate element.** The zone row restyles — outlined capsule, lock
-    glyph — and the row is itself the "resume auto" button. §6.6 asks for an
-    unambiguous indicator; it does not ask for a dedicated row, and on a watch
-    a row that is meaningful 5 % of the time is expensive.
+- **2026-07-31 — §11.2 rewritten after a UX pass.** Owner's decisions
+  throughout. Four parts, of which only the last two actually diverge:
+  - **Two horizontally-paged screens, neither scrolling**, replacing "one
+    screen". Forced by the Digital Crown: it cannot be both the scroll gesture
+    and the zone lock. Freeing it retires the two undiscoverable gestures as a
+    side effect, because the controls page gives every action a label. Costs one
+    swipe to reach `End workout`, which is the idiom Apple's Workout app already
+    uses.
+  - **The override indicator is a state of the zone row**, not an element of its
+    own — outlined capsule, lock glyph, and the row is the "resume auto" button.
+    §6.6 asks for an unambiguous indicator; it does not ask for a dedicated row,
+    and on a watch a row meaningful 5 % of the time is expensive.
+  - **"Next committed track" merged into a decision line.** As a field of its
+    own it was empty for roughly 90 % of every track. Merged with the status
+    text it always says something.
   - **The countdown is coarse**, four steps rather than 180. §11.2 asks for a
     countdown two lines above forbidding continuously running animation. This
-    reads the intent rather than the letter, and is the one place the amendment
-    diverges rather than refines.
+    reads the intent rather than the letter, and is the clearest divergence of
+    the four. It turned out to be Always-On-native as a side effect.
 
 ## Open design questions
 
@@ -282,3 +291,25 @@ first M2 traces is exactly the evidence needed, and guessing before those exist
 is the thing CLAUDE.md non-negotiable #4 is about. Until then the label on the
 zone row is the mitigation: an override the owner did not ask for says so, and
 the row saying it is the button that clears it.
+
+### On Always-On, and one thing that cannot be fixed
+
+§11.2 now specifies a reduced-luminance variant. Most of it is ordinary — drop
+now-playing, promote the zone name over the capsules, return to the glance page
+when the wrist drops.
+
+One property is worth stating separately because it will look like a bug:
+
+**Always-On staleness is a rendering property, and §6.2's stale detection
+cannot see it.** During Always-On the workout session keeps delivering samples,
+so `HRWindow` reports no gap and the stale treatment never fires — but the
+pixels on screen may be a minute old. Nothing distinguishes an Always-On
+snapshot from a live reading, and no API reports when the system last drew the
+app.
+
+There is no fix, only the knowledge. Accepted and recorded because "why did it
+say 142 when I was clearly at 170" is exactly the kind of thing that erodes
+trust in a system whose entire job is reacting to heart rate — and the answer
+is not that the control law was wrong, it is that the display was old. **V-8**
+measures the actual refresh budget and decides whether the decision line
+belongs in Always-On at all.
