@@ -61,7 +61,12 @@ final class WorkoutCoordinator {
     /// The idle screen's choices. Read at `start`, so changing them mid-session
     /// does nothing until the next one — which is the honest behaviour, since
     /// `HKWorkoutConfiguration` is fixed once the session begins.
-    let settings: SessionSettings
+    ///
+    /// `var` rather than `let` because the idle screen binds through it:
+    /// `$coordinator.settings.activity` needs a writable key path the whole way
+    /// down, and a constant stops it at the first step. The object identity
+    /// never actually changes.
+    var settings: SessionSettings
 
     private let clock: any HRDJCore.Clock
     private let source: HealthKitSource
