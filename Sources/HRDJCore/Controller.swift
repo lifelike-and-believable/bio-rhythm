@@ -225,7 +225,7 @@ public actor Controller {
         guard let target = zoneModel.targetZone(at: now) else { return }
         let pool = target.poolID
 
-        let selection: TrackRef?
+        let selection: PoolSelection?
         do {
             selection = try await pools.selectTrack(from: pool, avoidingArtists: recentArtists)
         } catch {
