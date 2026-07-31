@@ -39,17 +39,18 @@ struct ControllerTests {
         var avoided: [[String]] = []
         var empty = false
 
-        func selectTrack(from pool: PoolID, avoidingArtists: [String]) async throws -> TrackRef? {
+        func selectTrack(from pool: PoolID, avoidingArtists: [String]) async throws -> PoolSelection? {
             requested.append(pool)
             avoided.append(avoidingArtists)
             guard !empty else { return nil }
-            return TrackRef(
+            let track = TrackRef(
                 id: "sel-\(pool.rawValue)-\(requested.count)",
                 uri: "spotify:track:sel-\(pool.rawValue)-\(requested.count)",
                 title: "Selected",
                 primaryArtist: "Artist \(requested.count)",
                 durationMillis: 200_000
             )
+            return PoolSelection(track: track, pool: pool)
         }
     }
 

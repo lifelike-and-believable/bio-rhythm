@@ -17,7 +17,7 @@ public protocol PoolSelecting: Sendable {
     ///
     /// Nil means the pool is exhausted and could not be replenished, which the
     /// controller logs as `pool_starvation`.
-    func selectTrack(from pool: PoolID, avoidingArtists: [String]) async throws -> TrackRef?
+    func selectTrack(from pool: PoolID, avoidingArtists: [String]) async throws -> PoolSelection?
 }
 
 /// Where §11.3 records go. The app layer writes JSONL; tests collect in memory.
@@ -241,7 +241,7 @@ public actor Controller {
             return
         }
 
-        guard let track = selection else {
+        guard let chosen = selection else {
             // Consumes a slot rather than retrying on the spot. An exhausted
             // pool does not refill between two polls a second apart, and
             // `nextEvaluation` would otherwise return .zero forever — a tight
@@ -259,11 +259,23 @@ public actor Controller {
 
         scheduler.recordAttempt(at: now)
 
+        // §8: a fallback is a successful selection that still deserves a
+        // warning. Logged as its own record so the commit line stays a commit
+        // line and the starvation is greppable on its own.
+        if let starved = chosen.fellBackFrom {
+            var warning = baseRecord(event: .poolStarvation, at: now)
+            warning.targetZone = target
+            warning.selectedFromPool = starved
+            await sink.record(warning)
+        }
+
         var record = baseRecord(event: .commit, at: now)
         record.attempt = number
         record.targetZone = target
-        record.selectedFromPool = pool
-        record.selectedURI = track.uri
+        // The pool the track actually came from, which is not always the one
+        // asked for. Logging the request would put a Z4 label on a Z3 track.
+        record.selectedFromPool = chosen.pool
+        record.selectedURI = chosen.track.uri
         record.estimatedEndDriftMillis = observation.drift.map { Int($0.inSeconds * 1000) }
 
         guard actuationEnabled else {
@@ -273,17 +285,17 @@ public actor Controller {
             record.outcome = .skipped
             scheduler.recordSuccess(at: now)
             zoneModel.recordCommit(at: now)
-            noteArtist(track.primaryArtist)
+            noteArtist(chosen.track.primaryArtist)
             await sink.record(record)
             return
         }
 
         do {
-            try await playback.enqueue(TrackURI(track.uri))
+            try await playback.enqueue(TrackURI(chosen.track.uri))
             record.outcome = .success
             scheduler.recordSuccess(at: now)
             zoneModel.recordCommit(at: now)
-            noteArtist(track.primaryArtist)
+            noteArtist(chosen.track.primaryArtist)
             consecutiveFailures = 0
         } catch {
             record.outcome = .failure
