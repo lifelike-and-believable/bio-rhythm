@@ -68,6 +68,7 @@ final class WorkoutCoordinator {
     /// HealthKit's `Date` stamps can be placed on the monotonic timeline.
     private var sessionOrigin: (wall: Date, instant: Instant)?
     private var wasStale = false
+    private var overrideTicker: Task<Void, Never>?
 
     init(
         configuration: ControlConfiguration,
@@ -88,6 +89,7 @@ final class WorkoutCoordinator {
         zoneModel.lockZone(zone, at: clock.now)
         overrideCause = .locked
         refreshDerived()
+        startOverrideTicker()
         log(.overrideSet)
     }
 
@@ -97,6 +99,7 @@ final class WorkoutCoordinator {
         zoneModel.beginOverride(at: clock.now)
         overrideCause = cause
         refreshDerived()
+        startOverrideTicker()
         log(.overrideSet)
     }
 
@@ -104,8 +107,36 @@ final class WorkoutCoordinator {
     func resumeAuto() {
         zoneModel.resumeAuto()
         overrideCause = nil
+        overrideTicker?.cancel()
+        overrideTicker = nil
         refreshDerived()
         log(.overrideCleared)
+    }
+
+    /// Keeps the override countdown moving when nothing else does.
+    ///
+    /// Everything the screen shows is recomputed in `refreshDerived`, which
+    /// runs when a heart rate sample arrives. The hold, though, is a function
+    /// of time alone — so with no samples the countdown freezes and the
+    /// indicator never clears itself when the hold expires.
+    ///
+    /// That is not a corner case. §6.6 sets an override on a pause/resume
+    /// cycle, and a paused workout is exactly when HealthKit stops delivering:
+    /// the one trigger guaranteed to produce no samples is also the one that
+    /// most needs the countdown to keep running.
+    ///
+    /// Five seconds is well inside the coarse countdown's resolution, so the
+    /// visible cost is nothing and the wake-ups stop the moment the hold does.
+    private func startOverrideTicker() {
+        overrideTicker?.cancel()
+        overrideTicker = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self else { return }
+                self.refreshDerived()
+                if !self.isOverridden { return }
+            }
+        }
     }
 
     func start() async {
@@ -163,6 +194,8 @@ final class WorkoutCoordinator {
     /// indistinguishable on screen from a live value and is worst after a
     /// dropout, where the stale figure is already wrong.
     private func resetObservation() {
+        overrideTicker?.cancel()
+        overrideTicker = nil
         window = HRWindow(configuration: configuration)
         zoneModel = ZoneModel(configuration: configuration)
         instantaneousBPM = nil
@@ -215,7 +248,16 @@ final class WorkoutCoordinator {
         pendingZone = zoneModel.candidate
         isOverridden = zoneModel.isOverridden(at: now)
         overrideRemaining = zoneModel.overrideRemaining(at: now)
-        if !isOverridden { overrideCause = nil }
+        if !isOverridden {
+            // The hold can lapse on its own, so the cause and the ticker have
+            // to be cleaned up here as well as in `resumeAuto`.
+            if overrideCause != nil {
+                overrideCause = nil
+                log(.overrideCleared)
+            }
+            overrideTicker?.cancel()
+            overrideTicker = nil
+        }
 
         if isStale && !wasStale {
             log(.hrSampleGap)

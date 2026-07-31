@@ -57,6 +57,17 @@ struct ZoneRow: View {
             guard crownFocus, let picked = Zone(rawValue: Int(new.rounded())) else { return }
             guard picked != zone else { return }
             onLock(picked)
+            // Focus is surrendered as soon as a lock lands, so the gate closes
+            // behind every use of it. Leaving it open made the gate one-time:
+            // after the first tap the row stayed focused indefinitely, and any
+            // later Crown bump — a sleeve, a knock — pinned a zone and started
+            // a three-minute hold with no further intent from the owner. That
+            // is precisely the hazard the doc comment above claims is handled.
+            //
+            // The cost is one zone per tap. Acceptable: §6.5 already says the
+            // system moves one step at a time, and a manual lock is not the
+            // place to be looser than the automatic path.
+            crownFocus = false
         }
         .onChange(of: crownFocus) { _, focused in
             isFocused = focused
@@ -67,13 +78,19 @@ struct ZoneRow: View {
         .onTapGesture {
             if isOverridden {
                 onResume()
+                // Handing control back must also close the gate, or resuming
+                // leaves a live Crown behind it.
+                crownFocus = false
             } else {
                 crownFocus = true
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
-        .accessibilityAddTraits(.isButton)
+        // Only a row that can actually do something announces itself as a
+        // button. Before the first observation seeds a zone there is nothing
+        // to lock and nothing to resume.
+        .accessibilityAddTraits(isActionable ? .isButton : [])
     }
 
     private var capsules: some View {
@@ -142,7 +159,13 @@ struct ZoneRow: View {
         return minutes >= 1 ? "~\(minutes) min" : "under a minute"
     }
 
+    /// Inert until the first observation seeds a zone: there is nothing to
+    /// lock and nothing to resume.
+    private var isActionable: Bool { zone != nil }
+
     private var accessibilityText: String {
+        guard isActionable else { return "No zone yet" }
+
         var parts = [zone?.label ?? "No zone"]
         if isOverridden {
             parts.append("locked")
