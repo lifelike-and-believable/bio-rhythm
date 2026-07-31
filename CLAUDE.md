@@ -34,6 +34,7 @@ First-time setup (Spotify app registration, `Config.local.xcconfig`, onboarding)
 - No force unwraps outside tests.
 - Response fixtures in `Tests/SpotifyKitTests/Fixtures` are **captured from real API calls**, never hand-written. If you need a new one, ask for a capture rather than authoring it.
 - Secrets never in the repo. Client ID goes in a gitignored `Config.local.xcconfig`.
+- **Accessibility is part of a view's state machine, not a label bolted onto it.** Three rounds of watch UI produced three accessibility defects with one shape: a view whose *visible* state was carefully conditional carried a single fixed VoiceOver string and a single fixed trait set. The zone row announced itself as a button while inert; it offered "double tap to choose a zone with the crown" before any zone existed, and again in Always-On, where raising the wrist wakes the screen before a touch could land. When interactivity is conditional, `accessibilityLabel` and `accessibilityAddTraits` are conditional on **the same thing** — written in the same commit, not the next one. A label naming a gesture the current state cannot accept is worse than no label, because it is confidently wrong.
 
 ## Current state
 
