@@ -313,3 +313,46 @@ trust in a system whose entire job is reacting to heart rate — and the answer
 is not that the control law was wrong, it is that the display was old. **V-8**
 measures the actual refresh budget and decides whether the decision line
 belongs in Always-On at all.
+
+### D-8. `locationType` is pinned to `.unknown`, and R-14 gives that a cost
+
+§10 sets `HKWorkoutConfiguration.locationType = .unknown`. That was free when
+the workout session existed only to obtain heart rate and background runtime.
+It is no longer free: the owner has said R-14 matters to them, and the saved
+workout is now a record they intend to keep.
+
+For location-sensitive activities — running, cycling, walking — `.indoor` and
+`.outdoor` change how the system estimates energy, and `.unknown` gets a
+conservative middle. So the ring credit R-14 exists to provide is slightly
+wrong for exactly the activities most likely to be used.
+
+The fix is a contextual toggle on the idle screen, shown only when the chosen
+activity type is location-sensitive, and it is cheap. **What stops it being
+obvious is battery.** Declaring `.outdoor` may cause the system to enable GPS
+for distance, and §11.2 is explicit that battery matters more than polish here.
+Trading watch battery mid-workout for a better calorie estimate afterwards is
+not a trade to make on the owner's behalf.
+
+Not decided. Needs one measured session with `.outdoor` against one with
+`.unknown` to know what the battery actually costs, which makes it a companion
+to V-8 rather than something to reason about further.
+
+### Product framing: the single-workout-session constraint is accepted
+
+**2026-07-31, settled by the owner.** §15 lists "cannot coexist with another
+workout app" as a known risk resolved as a product decision, and V-3 names
+"product framing" among the things it blocks. That half is now answered: the
+owner does not track personal records and wants heart rate and ring credit,
+both of which R-14 provides.
+
+Two consequences worth carrying forward:
+
+- **R-14 is no longer a P2 nicety.** It is the entire mitigation for a
+  structural platform constraint, and the thing that makes bio-rhythm
+  acceptable as a replacement for the Workout app rather than an alternative to
+  it. Its priority should be reconsidered against that.
+- **Activity type moved out of M4** for the same reason (§11.2, idle screen).
+  Configuration can wait; a year of sessions labelled `Other` cannot.
+
+V-3 itself stays open — whether `startActivity` actually fails while another
+app holds a session is still unmeasured, as is V-7's more dangerous reverse.

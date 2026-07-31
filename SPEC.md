@@ -347,6 +347,14 @@ IDLE ──start──▶ AUTHORIZING ──▶ FETCHING_POOLS ──▶ ACQUIRI
 ```
 
 - `FETCHING_POOLS`: fetch every configured pool (§4.3), fresh, every session. Fail fast with a clear message if a pool is empty or unreadable. Two pools may be configured with the same playlist ID — Z0 and Z1 is the expected case (§8) — and it should be fetched once, not twice.
+
+  **Pre-warm on the idle screen.** The fetch begins when the idle screen
+  appears rather than when Start is pressed, so most of the latency hides
+  behind choosing an activity type. This does not weaken §4.5: contents are
+  still fetched fresh, still never persisted, still discarded at session end —
+  only the moment moves a few seconds earlier. Refetch if the pre-warmed copy
+  is older than `POOL_PREWARM_TTL` when Start is pressed. The cost is fetching
+  pools for sessions that are then not started.
 - `ACQUIRING_DEVICE`: `GET /me/player/devices`, select the watch, `PUT /me/player` to transfer, `PUT /me/player/shuffle`, `PUT /me/player/play` with fallback context.
 - `DEGRADED`: entered after `3` consecutive network failures. HR sampling and logging continue; commits are suspended; the UI shows it. Exponential backoff retry (2, 4, 8, 16, 30 s, capped) probing `GET /me/player`. Return to `RUNNING` on success.
 - `TEARDOWN`: end the workout session, flush telemetry, optionally save the workout (R-14). Do **not** pause playback on teardown unless the owner asks.
@@ -407,6 +415,7 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 - `HKWorkoutConfiguration`: `activityType` configurable, default `.other`; `locationType = .unknown`.
 - Authorization: read `HKQuantityType(.heartRate)`; share `HKWorkoutType` only if R-14 is enabled.
 - Use `HKLiveWorkoutBuilder` with `HKLiveWorkoutDataSource`. Read HR from `workoutBuilder(_:didCollectDataFor:)` via `statistics(for:)?.mostRecentQuantity()`, converted to `count/min`.
+- **Collect the data source's default types for the activity, not heart rate alone.** §3 excludes pace, GPS and calories as things this app *surfaces or reasons about*; it does not ask for a deliberately impoverished workout record. With R-14 enabled the saved session should carry the energy data the watch would otherwise have produced, or the Move ring falls back to an ambient estimate that is worse than the one a workout session affords. The control law still reads nothing but heart rate.
 - Expect roughly 1 Hz during activity, degrading with poor contact. The design already tolerates gaps (§6.2).
 - The active workout session is what grants extended background runtime. Do **not** additionally request `WKExtendedRuntimeSession`.
 - Handle `HKWorkoutSessionState` transitions including `.paused` (auto-pause) and interruption. A paused session suspends commits.
@@ -466,6 +475,50 @@ The decision line replaces two elements an earlier draft listed separately — "
 #### The controls page
 
 `End workout` · `Resume auto` · `Block this track`, plus window mean, sample count and commit count as diagnostics.
+
+#### The idle screen
+
+Three things, in priority order: **readiness**, **activity type**, **Start**.
+
+Readiness is not decoration. Today the button offers to start a session whether
+or not a token exists, whether or not Spotify is reachable, and whether or not
+the pools resolve — pressing it and finding out is the wrong order.
+
+**Activity type is chosen here**, from the full `HKWorkoutActivityType`
+catalogue minus the deprecated cases, ordered most-recently-used first and
+alphabetically below that. The ordering is what makes ~70 entries tractable on
+a watch: after a few sessions the two or three that matter are at the top.
+
+This is the one piece of R-13's configuration surface pulled forward out of M4,
+because R-14 makes it load-bearing: a year of sessions labelled `Other` is a
+worse record than the Workout app would have produced, which undercuts the
+reason for saving them at all.
+
+The Digital Crown scrolls that picker. That does not conflict with the zone
+lock — the Crown is the zone lock on the *glance page*, and the picker is a
+different screen.
+
+No last-session summary here. It is the natural place for one, and it is also
+what would turn a two-line screen back into a scrolling one.
+
+#### Starting a session is visible
+
+§7.4's startup does real work: refresh a token, fetch five paginated playlists,
+list devices, transfer playback, set shuffle, start the context. On a watch over
+LTE that is plausibly five to fifteen seconds, and "Starting…" is not an
+adequate account of it.
+
+Each state names itself, because each fails differently:
+
+| State | Shown | On failure |
+|---|---|---|
+| `AUTHORIZING` | `Connecting…` | Re-onboard from the phone |
+| `FETCHING_POOLS` | `Loading pools 3/5` | **Name the pool.** §7.4 fails fast; the message must say which one was empty or unreadable |
+| `ACQUIRING_DEVICE` | `Finding your watch…` | The watch is not a Spotify device — open Spotify on it |
+| starting playback | `Starting playback…` | Retry |
+
+`3/5` earns its specificity: it is the slow step, it is five separate paginated
+fetches, and a failure in one of them is a question about one playlist.
 
 #### The zone row and the override indicator
 
