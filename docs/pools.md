@@ -38,15 +38,13 @@ seeing what the first attempt returns.
 Prompt in terms of **energy and feel**, not genre. The whole design rests on
 energy tiers; a prompt that names a genre gets you a genre, whose energy varies.
 
-### Z0 — Meditation (below 62 bpm)
+### Z0 — Meditation (below 34% maxHR — 62 bpm at maxHR 182)
 
 > Still, spacious, unhurried music for sitting quietly. No percussion driving
 > it, no builds, nothing that resolves into a groove. Long and slow is fine.
 
-The one zone whose boundary is an absolute heart rate rather than a percentage
-of maxHR — §6.1 explains why. In practice you reach it sitting still, not
-moving, so this is the only pool where "ambient" is the right answer rather
-than the trap it is in Z1.
+You reach this sitting still, not moving, so it is the only pool where
+"ambient" is the right answer rather than the trap it is in Z1.
 
 **You may not want a fifth playlist for this**, and you do not have to have one.
 Pointing Z0 and Z1 at the same playlist ID is a supported configuration (§8):
@@ -57,13 +55,15 @@ Z1 prompt turns out to be too energetic for sitting still.
 Sizing is also different: you visit this zone for long stretches at a time or
 not at all, so 10–15 tracks is enough if you do curate it separately.
 
-### Z1 — Recovery (62 bpm to 60% maxHR)
+### Z1 — Recovery (34–60% maxHR — 62 to 109 bpm at maxHR 182)
 
 > Calm, steady tracks for warming up and cooling down. Low intensity but not
 > sleepy — something with a pulse I can walk to. No abrupt drops or big builds.
 
-Warm-up and cool-down, and whatever recovery you do between hard efforts. The
-trap is drifting into ambient: this still has to be listenable while moving.
+The default zone — warm-up, cool-down, walking around, and whatever recovery
+you do between hard efforts. Most of a non-workout day sits here. The trap is
+drifting into ambient: this still has to be listenable while moving, which is
+what separates it from Z0.
 
 ### Z2 — Aerobic (60–70%)
 

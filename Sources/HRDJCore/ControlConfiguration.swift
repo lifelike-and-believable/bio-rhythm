@@ -28,20 +28,15 @@ public struct ControlConfiguration: Hashable, Sendable {
     /// Set explicitly by the owner. §6.1 is emphatic that this is not computed
     /// from age.
     public var maxHR: Int
-    /// Lower bounds as a fraction of `maxHR`, for Z2, Z3, Z4.
-    public var zoneFractions: [Double] = [0.60, 0.70, 0.82]
-    /// The bpm at or above which the meditation zone has been left.
+    /// Lower bounds as a fraction of `maxHR`, for Z1, Z2, Z3, Z4. Ascending.
     ///
-    /// Absolute, not a fraction of `maxHR`, and the only threshold in the
-    /// system that is — `ZoneBoundaries` explains why. Set to `nil` to drop
-    /// back to §6.1's original four zones.
-    ///
-    /// This one *is* a free choice rather than a §6.7 default, so
-    /// non-negotiable #4 does not apply to it in the same way: it is closer to
-    /// `maxHR`, a personal measurement, than to a tuning constant. It should
-    /// still move on evidence — sit still, watch the number, and pick a value
-    /// above what you actually settle at.
-    public var meditationCeilingBPM: Int? = 62
+    /// The first entry is `MEDITATION_CEILING` — the Z0/Z1 boundary, 62 bpm at
+    /// maxHR 182. Unlike the three above it, that one is a personal choice
+    /// rather than a §6.7 tuning constant, so non-negotiable #4 does not hold
+    /// it hostage to M2 logs: it belongs with `maxHR`. It should still move on
+    /// evidence — sit still, watch the number, and put it above where you
+    /// actually settle.
+    public var zoneFractions: [Double] = ZoneBoundaries.defaultFractions
     /// Hysteresis half-width, as a fraction of `maxHR`. Entering a zone
     /// requires more than leaving it; that asymmetry is the point (§6.3).
     public var marginFraction: Double = 0.025
@@ -74,11 +69,7 @@ public struct ControlConfiguration: Hashable, Sendable {
     }
 
     public var boundaries: ZoneBoundaries {
-        ZoneBoundaries(
-            maxHR: maxHR,
-            fractions: zoneFractions,
-            meditationCeilingBPM: meditationCeilingBPM
-        )
+        ZoneBoundaries(maxHR: maxHR, fractions: zoneFractions)
     }
 
     /// §6.3: `MARGIN = 0.025 × maxHR`, roughly 4–5 bpm for most values.

@@ -7,12 +7,12 @@
 /// Ascending raw values must stay ascending in effort — several rules depend on
 /// that ordering, not merely on the cases being distinct.
 ///
-/// **`meditation` is an addition to §6.1's original four**, and it is the one
-/// zone whose boundary is an absolute bpm rather than a fraction of `maxHR`
-/// (see `ZoneBoundaries`). Adding it shifted the raw values of Z1–Z4 up by one.
-/// That is safe only because no telemetry has been recorded yet; once §11.3
-/// logs exist, a shift like this makes old sessions incomparable and the enum
-/// should gain cases rather than renumber them.
+/// **`meditation` is an addition to §6.1's original four.** Its boundary is a
+/// fraction of `maxHR` like every other, so nothing here is special-cased.
+/// Adding it shifted the raw values of Z1–Z4 up by one, which is safe only
+/// because no telemetry has been recorded yet; once §11.3 logs exist, a shift
+/// like this makes old sessions incomparable and the enum should gain cases
+/// rather than renumber them.
 public enum Zone: Int, CaseIterable, Hashable, Sendable, Comparable, Codable {
     case meditation = 0
     case z1 = 1

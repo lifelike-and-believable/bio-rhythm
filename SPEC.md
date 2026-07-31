@@ -200,21 +200,21 @@ All constants below are **tunable defaults** and must be surfaced in configurati
 
 ### 6.1 Zone definition
 
-Zones above the bottom are derived from `maxHR`, which the owner sets explicitly (do not compute from age).
+Zones are derived from `maxHR`, which the owner sets explicitly (do not compute from age).
 
-| Zone | Index | Label | Lower bound |
-|---|---|---|---|
-| Z0 | 0 | Meditation | 0 |
-| Z1 | 1 | Recovery | `MEDITATION_CEILING` bpm (absolute) |
-| Z2 | 2 | Aerobic | 60 % maxHR |
-| Z3 | 3 | Tempo | 70 % maxHR |
-| Z4 | 4 | Hard | 82 % maxHR |
+| Zone | Index | Label | Lower bound (% maxHR) | At maxHR 182 |
+|---|---|---|---|---|
+| Z0 | 0 | Meditation | 0 | — |
+| Z1 | 1 | Recovery | 34 | 62 bpm |
+| Z2 | 2 | Aerobic | 60 | 109 bpm |
+| Z3 | 3 | Tempo | 70 | 127 bpm |
+| Z4 | 4 | Hard | 82 | 149 bpm |
 
-`boundaries = [MEDITATION_CEILING] + [0.60, 0.70, 0.82] × maxHR`, the percentage terms rounded to whole bpm. At maxHR 182 that is `[62, 109, 127, 149]`.
+`boundaries = [0.34, 0.60, 0.70, 0.82] × maxHR`, rounded to whole bpm. Default activity — the zone you are in walking around, warming up, or doing anything at all — is Z1, the 62-to-109 band at maxHR 182.
 
-**The meditation threshold is an absolute bpm and is the only one that is.** Effort above aerobic scales with an individual's ceiling; a resting or meditative heart rate does not — it is set by the floor, and two people with the same resting HR can have maxHRs twenty beats apart. Expressed as a fraction it would drift upward whenever `maxHR` was re-measured upward, which is backwards. This is a deliberate divergence from "all zones are percentages of maxHR" and it is confined to this one boundary.
+**Every threshold is a fraction of `maxHR`, including the meditation ceiling.** `MEDITATION_CEILING = 34 %` was chosen to put the Z0/Z1 boundary at 62 bpm for the owner's 182. The uniformity earns its keep: `boundaries[i]` is the lower bound of zone `i + 1` with no offset and no special case, and an ascending fraction list is the only thing standing between §6.3 and a misordered threshold array. A single absolute bpm mixed in among percentages could cross the Z2 threshold at a low `maxHR` and would need its own validation and fallback path; as a fraction it cannot.
 
-**Degenerate configurations.** The threshold list must stay ascending; the rules in §6.3 and §6.5 are meaningless otherwise. If `MEDITATION_CEILING` is not strictly below the Z2 threshold — which needs a `maxHR` at or below about 103 — it is dropped and the range degrades to Z1–Z4 rather than to something silently misordered. Setting `MEDITATION_CEILING` to nothing does the same thing deliberately.
+The trade-off is real and worth stating: a meditative heart rate is arguably set by the resting floor rather than the maximum, so tying it to `maxHR` means it moves when `maxHR` is re-measured. Accepted in exchange for the uniformity. If it lands somewhere unhelpful after a re-measurement, change the fraction — that is what R-13 is for.
 
 The zone index is load-bearing: §6.3 indexes `boundaries` by it and §6.5 clamps on it. Z0 sits at index 0 with Z1–Z4 shifted up, rather than being bolted on below zero, so both rules are unchanged by its addition.
 
@@ -237,11 +237,11 @@ rawZone(h, n):
     otherwise                                        →  n
 ```
 
-`topZone` is `4` normally, or `3` when the meditation threshold has been dropped (§6.1) and zone indices run 1–4. Write it against the boundary count rather than a literal.
+`topZone` is the number of thresholds — `4` for §6.1's defaults. Write it against the boundary count rather than as a literal, so a change to the zone count does not need this rule rewritten.
 
 `MARGIN = 0.025 × maxHR` (≈ 4–5 bpm for most values). Asymmetric thresholds are the point: entering a zone requires more than leaving it, which prevents flapping when HR sits on a boundary.
 
-The margin is absolute, so at the Z0/Z1 boundary it is proportionally much wider than at Z3/Z4: at maxHR 182 you leave meditation at ≥ 66.6 bpm and re-enter below 57.5. That asymmetry is wanted here — drifting in and out of a meditation pool because of a two-beat wobble is exactly the flapping §6.3 exists to prevent — but it is worth checking against real traces in M2 before assuming one margin suits both ends of the range.
+The margin is one fixed bpm figure for the whole range, so at the Z0/Z1 boundary it is proportionally much wider than at Z3/Z4: at maxHR 182 you leave meditation at ≥ 66.6 bpm and re-enter below 57.5. That asymmetry is wanted here — drifting in and out of a meditation pool because of a two-beat wobble is exactly the flapping §6.3 exists to prevent — but it is worth checking against real traces in M2 before assuming one margin suits both ends of the range.
 
 ### 6.4 Dwell requirement
 
@@ -266,7 +266,7 @@ The watch UI must show an unambiguous override indicator with remaining time, an
 |---|---|---|
 | `WINDOW` | 45 s | Trailing mean window |
 | `STALE_SAMPLE` | 10 s | Freshness bound |
-| `MEDITATION_CEILING` | 62 bpm | Z0/Z1 boundary. **Absolute bpm, not a fraction of maxHR** (§6.1). A personal measurement like `maxHR` rather than a tuning constant — set it from observation, above where you actually settle |
+| `MEDITATION_CEILING` | 34 % maxHR | Z0/Z1 boundary; 62 bpm at maxHR 182. A personal choice like `maxHR` rather than a tuning constant — set it from observation, above where you actually settle, and do not wait on M2 logs to do so |
 | `MARGIN` | 2.5 % maxHR | Hysteresis half-width |
 | `DWELL` | 20 s | Continuous confirmation before a zone change is eligible |
 | `MAX_STEP` | 1 | Zones per commit |
@@ -532,7 +532,7 @@ Do not compress M2. It is the only milestone that produces the data needed to ma
 
 Fixtures in `Tests/HRDJCoreTests/Fixtures/*.json`, each a timestamped HR series:
 
-- `ramp_up.json` — 60 → 175 bpm over 20 min. Expect monotonic non-decreasing zones, one step at a time. Starts below `MEDITATION_CEILING`, so it exercises the Z0 → Z4 climb end to end.
+- `ramp_up.json` — 55 → 175 bpm over 20 min. Expect monotonic non-decreasing zones, one step at a time. Starts below `MEDITATION_CEILING`, so it exercises the Z0 → Z4 climb end to end.
 - `ramp_down.json` — mirror. Expect monotonic non-increasing.
 - `boundary_oscillation.json` — HR hovering ±3 bpm around a zone boundary for 15 min. **Expect zero zone changes.** This is the hysteresis test and the most important one in the suite.
 - `spiky.json` — 10-second spikes into Z4 from a Z2 baseline. Expect no zone change (dwell rejects them).

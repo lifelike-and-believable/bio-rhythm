@@ -11,7 +11,7 @@ A standalone watchOS app that steers Spotify playback by heart rate, choosing wh
 1. **Never interrupt a playing track.** The automatic controller must not be able to call pause, skip, previous, or seek. This is enforced by protocol separation (`SPEC.md` §5.3), not by convention. Do not add transport methods to `PlaybackReading` or `PlaybackQueueing`.
 2. **`Sources/HRDJCore` imports nothing but the standard library.** No HealthKit, no SwiftUI, no `URLSession`, no `Date()`. Time comes from the injected `Clock`. If control logic cannot be tested with a fake clock and a synthetic HR trace, it is in the wrong module.
 3. **The Spotify Web API changed in Nov 2024 and Feb 2026.** Pre-training knowledge is wrong in specific, load-bearing ways. `SPEC.md` §4 is the only endpoint list to work from. Notably: `audio-features`, `audio-analysis`, and `recommendations` are gone; playlist item endpoints are `/items`, not `/tracks`. Do not invent endpoints. If §4 lacks what you need, stop and ask.
-4. **Do not tune the constants in §6.7 speculatively.** They are tuned from real session telemetry during milestone M2. Changing them without log evidence is guesswork dressed as improvement. Two entries in that table are exceptions because they are personal measurements rather than tuning parameters: `maxHR` and `MEDITATION_CEILING`. Those the owner sets; everything else waits for logs.
+4. **Do not tune the constants in §6.7 speculatively.** They are tuned from real session telemetry during milestone M2. Changing them without log evidence is guesswork dressed as improvement. Two entries in that table are exceptions because they are personal choices rather than tuning parameters: `maxHR` and `MEDITATION_CEILING`. Those the owner sets; everything else waits for logs.
 5. **Invariants I1–I6 (§7.2) each have a test.** If you change the commit scheduler, the tests come first.
 
 ## Build and test
@@ -58,12 +58,12 @@ rather than followed. **D-1 is settled: the playback protocols live in
 `Sources/HRDJCore/Playback.swift` and `SpotifyKit` conforms to them.** §5.2/§5.3
 were amended to match. D-2, D-3 and D-4 are open; none blocks M2.
 
-The **meditation zone** (Z0, below 62 bpm) is the second amendment. It is the
-one threshold that is an absolute bpm rather than a percentage of `maxHR`, and
-adding it shifted every zone index up by one — see §6.1 and `ZoneBoundaries`.
-It has a `PoolID` (`Z0`) but no playlist yet; `docs/pools.md` covers both
-curating one and pointing Z0 at the Z1 playlist instead. Nothing consumes pools
-until M3.
+The **meditation zone** (Z0, below 34 % of `maxHR` — 62 bpm at 182) is the
+second amendment. Adding it shifted every zone index up by one; every threshold
+is still a percentage of `maxHR`, with no exceptions. See §6.1 and
+`ZoneBoundaries`. Z0 has a `PoolID` but no playlist yet; `docs/pools.md` covers
+both curating one and pointing Z0 at the Z1 playlist instead. Nothing consumes
+pools until M3.
 
 Not started: `ZoneModel` hysteresis/dwell/step-limit, `TrackClock`,
 `CommitScheduler`, `PoolManager`, `Controller`. The zone shown on screen in M1

@@ -44,10 +44,15 @@ diffs.
 - **2026-07-31 — meditation zone added** (§6.1, and consequentially §6.3, §6.5,
   §6.7, §7.4, §8, §11.2, R-13). Owner's request. Two things about it are worth
   knowing before reading the code:
-  - **Its boundary is an absolute bpm (62), not a fraction of `maxHR`.** Every
-    other threshold in the system is a percentage. §6.1 explains why this one
-    cannot be: a meditative HR is set by the floor, not the ceiling, and as a
-    fraction it would drift upward whenever `maxHR` was re-measured upward.
+  - **Its boundary is 34 % of `maxHR`** — 62 bpm at the owner's 182 — so §6.1's
+    "every zone is a percentage of `maxHR`" still holds without exception. It
+    was first written as an absolute 62 bpm on the reasoning that a meditative
+    HR is set by the resting floor rather than the maximum; the owner chose the
+    percentage instead. That reasoning is still true and is recorded in §6.1 as
+    the accepted trade-off, but uniformity bought more than it cost: an
+    absolute 62 crosses the Z2 threshold below `maxHR` 104, so it needed its
+    own validation and a fallback for the misordered case, and all of that
+    disappeared with the change.
   - **Zone indices shifted.** Z0 sits at index 0 and Z1–Z4 moved up by one, so
     §6.3's boundary indexing and §6.5's step arithmetic are unchanged. This was
     free only because no §11.3 telemetry has been recorded yet. Once M2 starts
@@ -108,10 +113,11 @@ to `MonotonicClock` would remove it if the friction proves annoying.
 
 ### D-4. Does one hysteresis margin suit both ends of the range? — M2 tuning
 
-The meditation zone (§6.1) put a threshold at 62 bpm, far below the others.
-`MARGIN` is 2.5 % of `maxHR` and therefore absolute — 4.55 bpm at maxHR 182 —
-so it is proportionally much wider at the Z0/Z1 boundary than at Z3/Z4. In
-practice you leave meditation at ≥ 66.6 bpm and re-enter below 57.5.
+The meditation zone (§6.1) put a threshold at 34 % of `maxHR` — 62 bpm at 182,
+far below the others. `MARGIN` is 2.5 % of `maxHR` and therefore a fixed bpm
+figure — 4.55 at maxHR 182 — so it is proportionally much wider at the Z0/Z1
+boundary than at Z3/Z4. In practice you leave meditation at ≥ 66.6 bpm and
+re-enter below 57.5.
 
 That is defensible and probably right: sitting still, a two-beat wobble should
 not change what is playing, and the pool either side is very different. But it
