@@ -340,14 +340,25 @@ GPS" covers wildly different amounts of work:
 2. **Location authorisation, for GPS-derived distance.** Small — a usage string
    and a prompt — but it adds a permission to onboarding, which is a real UX
    cost paid once. In scope under the parity bar.
-3. **`HKWorkoutRouteBuilder`, for the route map in Fitness.** *Not* in scope.
-   CoreLocation plumbing, continuous location collection, and a route object to
-   manage — and §3 excludes GPS routes as a non-goal. Tier 1 improves the
-   estimate; only tier 3 draws the map, and nothing said so far asks for the
-   map.
+3. **`HKWorkoutRouteBuilder`, for the route map in Fitness.** **Deferred, not
+   rejected.** CoreLocation plumbing, continuous location collection, and a
+   route object to manage — and §3 excludes GPS routes as a non-goal. Tier 1
+   improves the estimate; only tier 3 draws the map.
 
-If the map turns out to be wanted, it is a separate decision against §3 rather
-than an extension of this one.
+**On tier 3, 2026-07-31:** the owner does not want a map *drawn in this app*,
+and does want the option kept open for the workout to carry its route into
+Fitness. Those are compatible — §3's non-goal is about bio-rhythm not becoming
+a training log with its own map UI, not about the saved `HKWorkout` being
+poorer than it needs to be, which is the same distinction §10 already draws for
+energy data.
+
+So the shape if it is picked up: attach an `HKWorkoutRoute` to the saved
+workout under R-14, and render nothing. Fitness draws the map; this app never
+does. That keeps every pixel of §11.2 unchanged and stays inside the parity
+bar, since route collection is what any outdoor workout app already does.
+
+Not built. Recorded so that picking it up later is an implementation task
+rather than a fresh argument about §3.
 
 ### Product framing: the single-workout-session constraint is accepted
 
