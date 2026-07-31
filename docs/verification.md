@@ -96,9 +96,9 @@ contained fix:
 ## Deliberate changes to SPEC.md
 
 CLAUDE.md makes SPEC.md authoritative and says to flag conflicts rather than
-diverge silently. Three times now the right answer was to change the spec. All
-are listed here so the amendments are reviewable in one place rather than only
-as diffs.
+diverge silently. Several times now the right answer was to change the spec.
+All are listed here so the amendments are reviewable in one place rather than
+only as diffs.
 
 - **2026-07-31 — playback protocols moved from `SpotifyKit` to `HRDJCore`**
   (§5.2, §5.3). D-1 below has the reasoning. Owner's decision.
