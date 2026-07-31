@@ -75,14 +75,20 @@ final class HealthKitSource: NSObject {
         try await store.requestAuthorization(toShare: share, read: read)
     }
 
-    func start(activityType: HKWorkoutActivityType = .other) async throws {
+    func start(
+        activityType: HKWorkoutActivityType = .other,
+        locationType: HKWorkoutSessionLocationType = .unknown
+    ) async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             throw SourceError.healthDataUnavailable
         }
 
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = activityType
-        configuration.locationType = .unknown
+        // §10/D-8: set honestly rather than pinned to `.unknown`. It
+        // materially improves the system's energy estimate for running,
+        // cycling and walking, which is the ring credit R-14 exists to provide.
+        configuration.locationType = locationType
 
         let session: HKWorkoutSession
         do {

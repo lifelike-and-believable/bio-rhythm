@@ -58,6 +58,10 @@ final class WorkoutCoordinator {
     private(set) var startedAt: Date?
 
     var configuration: ControlConfiguration
+    /// The idle screen's choices. Read at `start`, so changing them mid-session
+    /// does nothing until the next one — which is the honest behaviour, since
+    /// `HKWorkoutConfiguration` is fixed once the session begins.
+    let settings: SessionSettings
 
     private let clock: any HRDJCore.Clock
     private let source: HealthKitSource
@@ -69,13 +73,18 @@ final class WorkoutCoordinator {
     private var sessionOrigin: (wall: Date, instant: Instant)?
     private var wasStale = false
     private var overrideTicker: Task<Void, Never>?
+    /// Captured at `start`, because `stop` must honour what the session was
+    /// begun with rather than whatever the toggle says by the time it ends.
+    private var savingThisSession = false
 
     init(
         configuration: ControlConfiguration,
+        settings: SessionSettings = SessionSettings(),
         clock: any HRDJCore.Clock = SystemClock(),
         source: HealthKitSource = HealthKitSource()
     ) {
         self.configuration = configuration
+        self.settings = settings
         self.clock = clock
         self.source = source
         self.window = HRWindow(configuration: configuration)
@@ -153,14 +162,21 @@ final class WorkoutCoordinator {
         }
 
         do {
-            try await source.requestAuthorization(saveWorkout: false)
-            try await source.start()
+            let activity = settings.activity
+            let saving = settings.saveWorkout
+
+            try await source.requestAuthorization(saveWorkout: saving)
+            try await source.start(
+                activityType: activity.activityType,
+                locationType: activity.locationType
+            )
 
             let now = Date()
             sessionOrigin = (wall: now, instant: clock.now)
             startedAt = now
             telemetry = try? TelemetryLog(directory: TelemetryLog.defaultDirectory(), startedAt: now)
 
+            savingThisSession = saving
             state = .running
             log(.sessionStart)
         } catch {
@@ -180,7 +196,12 @@ final class WorkoutCoordinator {
         // one boundary every later reading of the file depends on.
         await logAwaiting(.sessionEnd)
 
-        await source.stop(saveWorkout: false)
+        // R-14. No longer a P2 nicety: it is the whole mitigation for the
+        // single-workout-session constraint in §15, and the reason the owner
+        // accepted that bio-rhythm replaces the Workout app rather than running
+        // alongside it. Read from settings rather than the live toggle so a
+        // session saves the way it was started.
+        await source.stop(saveWorkout: savingThisSession)
         await telemetry?.close()
         telemetry = nil
         sessionOrigin = nil
