@@ -96,9 +96,9 @@ contained fix:
 ## Deliberate changes to SPEC.md
 
 CLAUDE.md makes SPEC.md authoritative and says to flag conflicts rather than
-diverge silently. Twice now the right answer was to change the spec. Both are
-listed here so the amendments are reviewable in one place rather than only as
-diffs.
+diverge silently. Three times now the right answer was to change the spec. All
+are listed here so the amendments are reviewable in one place rather than only
+as diffs.
 
 - **2026-07-31 — playback protocols moved from `SpotifyKit` to `HRDJCore`**
   (§5.2, §5.3). D-1 below has the reasoning. Owner's decision.
@@ -119,6 +119,17 @@ diffs.
     free only because no §11.3 telemetry has been recorded yet. Once M2 starts
     producing traces, renumbering makes sessions incomparable and a future zone
     would have to be appended instead.
+
+- **2026-07-31 — the override indicator became a state of the zone row**
+  (§11.2). Owner's decision, from a UX pass. Two parts:
+  - **Not a separate element.** The zone row restyles — outlined capsule, lock
+    glyph — and the row is itself the "resume auto" button. §6.6 asks for an
+    unambiguous indicator; it does not ask for a dedicated row, and on a watch
+    a row that is meaningful 5 % of the time is expensive.
+  - **The countdown is coarse**, four steps rather than 180. §11.2 asks for a
+    countdown two lines above forbidding continuously running animation. This
+    reads the intent rather than the letter, and is the one place the amendment
+    diverges rather than refines.
 
 ## Open design questions
 
