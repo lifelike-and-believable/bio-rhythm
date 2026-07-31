@@ -21,14 +21,38 @@ final class WorkoutCoordinator {
         case failed(String)
     }
 
+    /// Why auto-control is suspended, for §11.2's zone-row label. Presentation
+    /// only — `ZoneModel` holds the hold itself and has no opinion about what
+    /// caused it.
+    enum OverrideCause {
+        case locked
+        case paused
+        case skipped
+
+        var label: String {
+            switch self {
+            case .locked: "Locked"
+            case .paused: "Paused"
+            case .skipped: "Skipped"
+            }
+        }
+    }
+
     private(set) var state: State = .idle
     /// Most recent reading, for the large number on screen.
     private(set) var instantaneousBPM: Int?
     /// The §6.2 trailing mean — the control input, and nil when stale.
     private(set) var observedHR: Double?
-    /// Raw zone from the mean. No hysteresis until M2, so expect this to
+    /// The zone the music would follow: §6.3 hysteresis, §6.4 dwell and §6.5
+    /// step limit applied. No longer the raw §6.1 mapping, so it does not
     /// flicker on a threshold.
     private(set) var zone: Zone?
+    /// A zone change that has been proposed but has not yet served its dwell.
+    /// Drives the "settling" line; nil most of the time.
+    private(set) var pendingZone: Zone?
+    private(set) var isOverridden = false
+    private(set) var overrideRemaining: Duration?
+    private(set) var overrideCause: OverrideCause?
     private(set) var sampleCount = 0
     private(set) var isStale = false
     private(set) var startedAt: Date?
@@ -38,11 +62,13 @@ final class WorkoutCoordinator {
     private let clock: any HRDJCore.Clock
     private let source: HealthKitSource
     private var window: HRWindow
+    private var zoneModel: ZoneModel
     private var telemetry: TelemetryLog?
     /// Wall clock at the moment the monotonic clock read `sessionOrigin`, so
     /// HealthKit's `Date` stamps can be placed on the monotonic timeline.
     private var sessionOrigin: (wall: Date, instant: Instant)?
     private var wasStale = false
+    private var overrideTicker: Task<Void, Never>?
 
     init(
         configuration: ControlConfiguration,
@@ -53,6 +79,64 @@ final class WorkoutCoordinator {
         self.clock = clock
         self.source = source
         self.window = HRWindow(configuration: configuration)
+        self.zoneModel = ZoneModel(configuration: configuration)
+    }
+
+    // MARK: - §6.6 manual input
+
+    /// Pins a zone and starts the hold. §11.2's Digital Crown gesture.
+    func lockZone(_ zone: Zone) {
+        zoneModel.lockZone(zone, at: clock.now)
+        overrideCause = .locked
+        refreshDerived()
+        startOverrideTicker()
+        log(.overrideSet)
+    }
+
+    /// Suspends auto-control without changing the zone — a detected skip, or a
+    /// pause/resume cycle.
+    func beginOverride(_ cause: OverrideCause) {
+        zoneModel.beginOverride(at: clock.now)
+        overrideCause = cause
+        refreshDerived()
+        startOverrideTicker()
+        log(.overrideSet)
+    }
+
+    /// §6.6's "resume auto". Tapping the zone row.
+    func resumeAuto() {
+        zoneModel.resumeAuto()
+        overrideCause = nil
+        overrideTicker?.cancel()
+        overrideTicker = nil
+        refreshDerived()
+        log(.overrideCleared)
+    }
+
+    /// Keeps the override countdown moving when nothing else does.
+    ///
+    /// Everything the screen shows is recomputed in `refreshDerived`, which
+    /// runs when a heart rate sample arrives. The hold, though, is a function
+    /// of time alone — so with no samples the countdown freezes and the
+    /// indicator never clears itself when the hold expires.
+    ///
+    /// That is not a corner case. §6.6 sets an override on a pause/resume
+    /// cycle, and a paused workout is exactly when HealthKit stops delivering:
+    /// the one trigger guaranteed to produce no samples is also the one that
+    /// most needs the countdown to keep running.
+    ///
+    /// Five seconds is well inside the coarse countdown's resolution, so the
+    /// visible cost is nothing and the wake-ups stop the moment the hold does.
+    private func startOverrideTicker() {
+        overrideTicker?.cancel()
+        overrideTicker = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self else { return }
+                self.refreshDerived()
+                if !self.isOverridden { return }
+            }
+        }
     }
 
     func start() async {
@@ -110,10 +194,17 @@ final class WorkoutCoordinator {
     /// indistinguishable on screen from a live value and is worst after a
     /// dropout, where the stale figure is already wrong.
     private func resetObservation() {
+        overrideTicker?.cancel()
+        overrideTicker = nil
         window = HRWindow(configuration: configuration)
+        zoneModel = ZoneModel(configuration: configuration)
         instantaneousBPM = nil
         observedHR = nil
         zone = nil
+        pendingZone = nil
+        isOverridden = false
+        overrideRemaining = nil
+        overrideCause = nil
         sampleCount = 0
         isStale = false
         wasStale = false
@@ -148,17 +239,53 @@ final class WorkoutCoordinator {
         sampleCount = window.sampleCount(at: now)
         isStale = window.isStale(at: now)
 
-        if let observedHR {
-            // §6.2: hold the zone on missing data. Leaving `zone` untouched
-            // when the observation is nil is that rule, expressed as an
-            // assignment that does not happen.
-            zone = configuration.boundaries.zone(for: observedHR)
+        // §6.2's "hold the zone on missing data" is inside `observe`: a nil
+        // observation resets the dwell timer and leaves `currentZone` alone.
+        zoneModel.observe(hr: observedHR, at: now)
+        advanceZoneIfEligible(at: now)
+
+        zone = zoneModel.currentZone
+        pendingZone = zoneModel.candidate
+        isOverridden = zoneModel.isOverridden(at: now)
+        overrideRemaining = zoneModel.overrideRemaining(at: now)
+        if !isOverridden {
+            // The hold can lapse on its own, so the cause and the ticker have
+            // to be cleaned up here as well as in `resumeAuto`.
+            if overrideCause != nil {
+                overrideCause = nil
+                log(.overrideCleared)
+            }
+            overrideTicker?.cancel()
+            overrideTicker = nil
         }
 
         if isStale && !wasStale {
             log(.hrSampleGap)
         }
         wasStale = isStale
+    }
+
+    /// Advances the zone as soon as §6.4's dwell and §6.5's step limit allow.
+    ///
+    /// **This is not what M2 will do, and the difference is deliberate.**
+    /// `ZoneModel.currentZone` moves only in `recordCommit`, which is what
+    /// makes §6.5's "a sprint from Z1 to Z4 walks up over three tracks" true —
+    /// the zone advances per *track*, not per sample.
+    ///
+    /// M1 has no tracks. Nothing calls `recordCommit`, so wiring the model in
+    /// without this would seed the zone once and freeze it there for the whole
+    /// session, which is a worse screen than the flickering one it replaces.
+    /// Advancing on eligibility is the honest reading: with no commit to wait
+    /// for, the moment a change becomes eligible is the moment it happens.
+    ///
+    /// The consequence to expect on screen is that M1 climbs faster than M2
+    /// will. Dwell and the step limit still apply; only the boundary wait is
+    /// missing, because there is no boundary.
+    private func advanceZoneIfEligible(at now: Instant) {
+        guard let target = zoneModel.targetZone(at: now),
+              target != zoneModel.currentZone else { return }
+        zoneModel.recordCommit(at: now)
+        log(.zoneChange)
     }
 
     // MARK: - Telemetry
@@ -183,6 +310,9 @@ final class WorkoutCoordinator {
         decision.hrWindowMean = observedHR
         decision.windowSampleCount = sampleCount
         decision.currentZone = zone
+        decision.rawZone = observedHR.map { configuration.boundaries.zone(for: $0) }
+        decision.eligibleZone = pendingZone
+        decision.overrideActive = isOverridden
         return decision
     }
 
@@ -194,6 +324,11 @@ final class WorkoutCoordinator {
             // §10: a paused session suspends commits. Nothing to suspend yet in
             // M1, but the state has to be visible or M3 inherits a silent bug.
             state = .paused
+            // §6.6 lists a pause/resume cycle as an override trigger. Setting
+            // it here rather than on resume means the indicator is already
+            // correct when the owner looks at the screen, which is usually
+            // while it is paused.
+            if !isOverridden { beginOverride(.paused) }
         case .ended, .stopped:
             // Ended from outside the app — the Workout app taking the session,
             // or HealthKit failing it. Flipping the label alone would leave the

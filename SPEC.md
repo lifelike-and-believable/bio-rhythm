@@ -448,7 +448,9 @@ Spotify does not publish exact limits. Implement a conservative token-bucket in 
 
 ### 11.2 Watch UI
 
-**Two horizontally-paged screens, neither of which scrolls.** A glance page that is read-only, and a controls page holding every action.
+**Two horizontally-paged screens.** A glance page that is read-only, and a controls page holding every action.
+
+**The glance page does not scroll.** Two reasons, and both are specific to it: the Digital Crown is the zone lock there, and a workout screen you have to scroll is one you cannot read at a glance. **The controls page may scroll** — neither reason applies, since the Crown has no job on it and nobody reads it mid-effort. It also has to: three buttons and a diagnostics block do not fit a 42 mm screen, and forbidding the scroll would break the page to satisfy a rule that was only ever about the other one.
 
 No animations that run continuously — a workout screen should not carry moving decoration, and it is unreadable at a glance if it does.
 
