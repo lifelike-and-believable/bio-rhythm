@@ -255,10 +255,17 @@ The margin is one fixed bpm figure for the whole range, so at the Z0/Z1 boundary
 
 ### 6.6 Override
 
-While `overrideUntil > now`, `targetZone = currentZone` unconditionally. `OVERRIDE_HOLD = 180 s`, set by:
-- a detected manual skip (R-10),
+While the override is in force, `targetZone = currentZone` unconditionally. It is set by:
 - a manual zone change in the UI,
-- a manual pause/resume cycle.
+- a detected manual skip (R-10), once that exists — see D-7.
+
+**The hold does not expire.** It ends when the owner ends it.
+
+An earlier draft released it after `OVERRIDE_HOLD = 180 s`. That timeout earns its place only on the *inferred* trigger: a detected skip can be a false positive, and one that never lapsed would disable auto-control for a whole session. On a deliberate zone lock it does the opposite of good — 180 s is an arbitrary interval that matches no real one, and the system resumes changing the music at a moment the owner did not choose and may not notice. Since R-10 does not exist yet, every override today is deliberate, and the timeout was doing no work at all.
+
+A persistent lock glyph guards against forgetting better than a silent expiry does: the glyph is on screen at every glance; the timeout is invisible until it fires. `OVERRIDE_HOLD` stays in §6.7, dormant, waiting for the inferred trigger that will want it.
+
+**The pause/resume trigger went with it.** A paused workout produces no samples, so §6.2's stale path already holds the zone — the override was solving a problem two other mechanisms already solve. And with no expiry it would have been actively harmful: watchOS auto-pauses workouts, so auto-control would have been suspended permanently without the owner doing anything at all.
 
 The watch UI must show an unambiguous override indicator with remaining time, and offer a "resume auto" action that clears it immediately.
 
@@ -272,7 +279,7 @@ The watch UI must show an unambiguous override indicator with remaining time, an
 | `MARGIN` | 2.5 % maxHR | Hysteresis half-width |
 | `DWELL` | 20 s | Continuous confirmation before a zone change is eligible |
 | `MAX_STEP` | 1 | Zones per commit |
-| `OVERRIDE_HOLD` | 180 s | Auto-control suspension after manual input |
+| `OVERRIDE_HOLD` | 180 s | **Dormant.** §6.6's hold no longer expires. Kept for the inferred trigger (R-10 / D-7), which is the only case that wants an expiry |
 | `COMMIT_OPEN` | T−20 s | First commit attempt |
 | `COMMIT_RETRY_1` | T−14 s | |
 | `COMMIT_RETRY_2` | T−9 s | |
@@ -580,9 +587,7 @@ Screen space is the scarcest resource on a watch. An element meaningful for roug
 
 A track ends early when it was skipped, but also when the §7.1 estimate drifted, when Spotify moved on by itself, or when something else took playback. A false positive suspends auto-control for three minutes with no visible cause. One word of provenance is the whole fix: if the row says `Skipped` and the owner did not skip, the system has just explained its own mistake — and the row saying it is already the button that undoes it.
 
-**The countdown is coarse:** `~3 min`, `~2 min`, `~1 min`, `under a minute`. Four updates rather than 180.
-
-This is a deliberate reading of "with countdown" against "no animations that run continuously" two lines above. The battery argument alone is weak — heart rate already redraws at roughly 1 Hz while the screen is active — but a ticking second hand pulls the eye during effort, and the only question it is asked is "is this nearly over?", which does not need second precision.
+**There is no countdown**, because §6.6's hold no longer expires and there is nothing to count. An earlier draft specified a coarse one — `~2 min` rather than `2:47` — to keep it clear of the "no animations that run continuously" rule two lines above. Removing the expiry removed the question.
 
 #### Manual zone lock, and why the Crown is focus-gated
 

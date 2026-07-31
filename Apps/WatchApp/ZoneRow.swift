@@ -9,11 +9,15 @@ import HRDJCore
 ///
 /// ## It is also the override indicator, and the button
 ///
-/// §6.6 wants an unambiguous override indicator with remaining time and a
-/// "resume auto" action. It is not a separate element. The thing being
-/// overridden *is* the zone, so this row restyles — outlined capsule, lock
-/// glyph, cause and coarse countdown on the label — and tapping it clears the
-/// hold. Nothing on screen changes size or position when an override begins or
+/// §6.6 wants an unambiguous override indicator and a "resume auto" action. It
+/// is not a separate element. The thing being overridden *is* the zone, so this
+/// row restyles — outlined capsule, lock glyph and cause on the label — and
+/// tapping it clears the hold.
+///
+/// There is no countdown, because there is nothing to count: the hold no longer
+/// expires. That deleted the five-second ticker that kept a countdown honest,
+/// and with it a bug where the number froze whenever heart rate stopped
+/// arriving. Nothing on screen changes size or position when an override begins or
 /// ends, which is the point: a row that appears and displaces everything below
 /// it is worse than one that simply looks different.
 ///
@@ -27,7 +31,6 @@ struct ZoneRow: View {
     let zone: Zone?
     let pendingZone: Zone?
     let isOverridden: Bool
-    let overrideRemaining: Duration?
     let overrideCause: String?
     let onLock: @MainActor (Zone) -> Void
     let onResume: @MainActor () -> Void
@@ -136,27 +139,9 @@ struct ZoneRow: View {
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }
-                if let countdown = Self.coarse(overrideRemaining) {
-                    Text(countdown)
-                        .font(.caption2)
-                        .foregroundStyle(.orange.opacity(0.7))
-                }
             }
         }
         .lineLimit(1)
-    }
-
-    /// §11.2's coarse countdown: four updates across a three-minute hold rather
-    /// than 180.
-    ///
-    /// Not primarily a battery decision — heart rate already redraws at roughly
-    /// 1 Hz while the screen is on. A ticking second hand pulls the eye during
-    /// effort, and the only question it is ever asked is "is this nearly over?",
-    /// which does not need second precision.
-    static func coarse(_ remaining: Duration?) -> String? {
-        guard let remaining, remaining > .zero else { return nil }
-        let minutes = Int(remaining.inSeconds / 60)
-        return minutes >= 1 ? "~\(minutes) min" : "under a minute"
     }
 
     /// Inert until the first observation seeds a zone: there is nothing to
@@ -170,7 +155,6 @@ struct ZoneRow: View {
         if isOverridden {
             parts.append("locked")
             if let overrideCause { parts.append(overrideCause) }
-            if let countdown = Self.coarse(overrideRemaining) { parts.append(countdown) }
             parts.append("double tap to resume automatic control")
         } else {
             parts.append("double tap to choose a zone with the crown")

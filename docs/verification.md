@@ -140,6 +140,29 @@ as diffs.
     reads the intent rather than the letter, and is the clearest divergence of
     the four. It turned out to be Always-On-native as a side effect.
 
+- **2026-07-31 — §6.6's override no longer expires.** Owner's decision. The
+  timeout earns its place only on the *inferred* trigger: a detected skip can
+  be a false positive, and one that never lapsed would disable auto-control for
+  a whole session. On a deliberate lock it does the reverse — 180 s matches no
+  real interval, and the music starts moving again at a moment nobody chose.
+  Since R-10 does not exist (D-7), every override today is deliberate and the
+  timeout was doing no work.
+
+  Two things went with it, and both are the point rather than collateral:
+  - **The countdown**, and the five-second ticker that kept it honest. Two of
+    the four defects found in the watch UI were in that machinery — a countdown
+    that froze whenever heart rate stopped arriving, and a hold that lapsed
+    without clearing its own cause or writing `override_cleared`. Removing the
+    expiry removed both at the root rather than fixing them.
+  - **The pause/resume trigger.** §6.2's stale path already holds the zone when
+    a workout pauses, so the override was duplicating two other mechanisms —
+    and with no expiry it would have been harmful, since watchOS auto-pauses
+    workouts and auto-control would have stopped permanently with no action
+    from the owner.
+
+  `OVERRIDE_HOLD` stays in §6.7 marked dormant. The timeout was never wrong in
+  general, only wrong for a deliberate lock.
+
 ## Open design questions
 
 Recorded here rather than resolved unilaterally, per CLAUDE.md ("if a request
