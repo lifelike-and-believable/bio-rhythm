@@ -1,4 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bio-rhythm — music that follows your heart rate</title>
+<meta name="description" content="A watchOS app that reads your heart rate on the wrist and chooses what plays next from five playlists you write yourself. It never interrupts a track.">
+<!-- The page defines both themes below; this tells the UA so form controls and
+     the scrollbar follow rather than staying stubbornly light. -->
+<meta name="color-scheme" content="light dark">
 
 <style>
   :root {
@@ -306,7 +315,9 @@
     .zone { transition: none; }
   }
 </style>
+</head>
 
+<body>
 <div class="wrap">
 
   <header>
@@ -335,7 +346,9 @@
       </div>
 
       <div class="status">
-        <span id="state">Observing</span>
+        <!-- Three nodes rather than one, so the script can write text into
+             each with textContent and never assemble markup at runtime. -->
+        <span><span id="state-verb">Observing</span> <b id="state-zone">—</b><span id="state-detail"></span></span>
         <span>window <b id="mean">—</b></span>
       </div>
     </div>
@@ -465,7 +478,9 @@
 
     const zonesEl = document.getElementById("zones");
     const bpmEl = document.getElementById("bpm");
-    const stateEl = document.getElementById("state");
+    const verbEl = document.getElementById("state-verb");
+    const zoneEl = document.getElementById("state-zone");
+    const detailEl = document.getElementById("state-detail");
     const meanEl = document.getElementById("mean");
 
     const cells = NAMES.map(function (name, i) {
@@ -536,9 +551,13 @@
 
       if (cand !== null) {
         const held = t - candSince;
-        stateEl.innerHTML = "Settling → <b>" + NAMES[cand] + "</b> · " + held + "s of " + DWELL;
+        verbEl.textContent = "Settling →";
+        zoneEl.textContent = NAMES[cand];
+        detailEl.textContent = " · " + held + "s of " + DWELL;
       } else {
-        stateEl.innerHTML = "Observing · <b>" + NAMES[zone] + "</b>";
+        verbEl.textContent = "Observing ·";
+        zoneEl.textContent = NAMES[zone];
+        detailEl.textContent = "";
       }
     }
 
@@ -551,3 +570,5 @@
     }
   })();
 </script>
+</body>
+</html>

@@ -19,6 +19,7 @@ verification gates that keep the controller safe.
 - **[`docs/SETUP.md`](docs/SETUP.md)** — Spotify registration, local config, onboarding.
 - **[`docs/pools.md`](docs/pools.md)** — the playlists: prompts, sizing, and the auto-refresh decision.
 - **[`docs/verification.md`](docs/verification.md)** — what nobody has checked yet, and open design questions.
+- **[`docs/marketing-draft.html`](docs/marketing-draft.html)** — an alternative, louder treatment of the site. A draft kept out of `web/`, which is exactly what gets published.
 
 ## Layout
 
