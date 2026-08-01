@@ -1,0 +1,59 @@
+name: Pages
+
+# Deploys web/ to GitHub Pages. Separate from ci.yml on purpose: that workflow
+# pins Xcode and runs on macOS runners because it builds Swift. This one copies
+# a directory of static files and has no business paying for a Mac to do it.
+#
+# Requires Pages to be enabled on the repository with **Source: GitHub Actions**
+# (Settings → Pages). Until that is done this workflow fails at the configure
+# step with a message saying exactly that.
+
+on:
+  push:
+    branches: [main]
+    # Unlike ci.yml, a path filter is right here. Skipping a deploy is not the
+    # same hazard as skipping a build: no gate is being satisfied, nothing reads
+    # as green that was not checked, and the previous deploy stays live and
+    # correct. The reasoning that removed paths-ignore from CI does not carry
+    # over.
+    paths:
+      - "web/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  # Deliberately not cancel-in-progress. A cancelled deploy can leave the site
+  # part-published, and two pushes a minute apart are not worth that risk.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy web/
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # The site is a single self-contained file — no build step, no bundler,
+      # no external requests. Uploading the directory is the whole pipeline.
+      - name: Upload web/
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

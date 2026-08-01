@@ -13,6 +13,7 @@ Current scope: single user, sideloaded, not for distribution. `SPEC.md`
 records a later commercial/App Store phase, but only behind the M2/M3
 verification gates that keep the controller safe.
 
+- **[The site](https://lifelike-and-believable.github.io/bio-rhythm/)** — what it is for, and how far along it is.
 - **[`SPEC.md`](SPEC.md)** — requirements and design. Authoritative.
 - **[`CLAUDE.md`](CLAUDE.md)** — working rules for anyone, human or agent, changing this repo.
 - **[`docs/SETUP.md`](docs/SETUP.md)** — Spotify registration, local config, onboarding.
