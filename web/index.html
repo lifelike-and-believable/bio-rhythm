@@ -257,7 +257,9 @@
     background: var(--accent);
     margin-top: 0.24em;
   }
-  li.no b { display: block; font-family: var(--sans); font-weight: 650; }
+  li b { display: block; font-family: var(--sans); font-weight: 650; }
+  /* Muted marker for the "does not do" list: those items are the absence of
+     things, and should not read with the same emphasis as the promises. */
   li.no::before { background: var(--z0); }
 
   .status-table {
@@ -311,9 +313,10 @@
     <p class="eyebrow">watchOS · spotify · single user</p>
     <h1>Music that follows your heart&nbsp;rate.</h1>
     <p class="lede">
-      bio-rhythm reads your heart rate on the wrist and chooses what plays next
-      from five playlists you write yourself. It never interrupts a track — it
-      decides at the boundary, and commits in the last twenty seconds.
+      Your music should already know what you are doing. bio-rhythm reads your
+      heart rate on the wrist and chooses what plays next from five playlists
+      you write yourself — so the energy follows the effort, and you never touch
+      the watch.
     </p>
   </header>
 
@@ -342,6 +345,16 @@
       spike, and take twenty seconds to confirm a real change. Thresholds shown
       are for a maximum heart rate of 182 — 62 / 109 / 127 / 149&nbsp;bpm.
     </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The promise</p>
+    <h2>Three things it is for.</h2>
+    <ul>
+      <li><b>You never touch it mid-effort.</b> No skipping to find something with the right energy, no reaching for a phone at threshold. The loop closes itself.</li>
+      <li><b>It works with the phone left at home.</b> Everything runs on the watch: heart rate, decisions, playback. The phone is needed once, to connect Spotify, and never again.</li>
+      <li><b>The taste stays yours.</b> Five playlists, five prompts you write. The system supplies the timing; you supply what <em>Tempo</em> actually means.</li>
+    </ul>
   </section>
 
   <section>
@@ -394,14 +407,26 @@
     </ul>
   </section>
 
+  <!--
+    This section is the slot that becomes "Get it" when §16.5's release gate is
+    met. Until then it carries the honest distance instead. Everything above it
+    — the promise, the mechanism, the guarantee, the boundary — is written to
+    survive that change unedited, so shipping is a matter of replacing one
+    section rather than rewriting the page.
+  -->
   <section>
-    <p class="eyebrow">Honest status</p>
-    <h2>Built, and never run.</h2>
+    <p class="eyebrow">Where it is</p>
+    <h2>Most of the way there.</h2>
     <p>
-      The control law, the Spotify client and the whole watch interface exist
-      and are tested. Every line of it has been verified by continuous
-      integration and by nothing else — no session has yet taken place on a
-      wrist. This is not available to install, and there is no date.
+      The control law, the Spotify client and the whole watch interface are
+      built and tested. What is left is the part that cannot be hurried: the
+      loop has to run through real workouts before it is trusted to choose
+      anything.
+    </p>
+    <p>
+      Every line of this has been verified by continuous integration and by
+      nothing else. No session has yet taken place on a wrist. There is nothing
+      to install and no date — when there is, it will be said here.
     </p>
 
     <div class="status-table">
@@ -414,10 +439,12 @@
     </div>
 
     <p>
-      The next step is deliberately slow. Several real workouts get logged with
-      the loop observing but not acting, and the timing constants get tuned
-      against those logs before anything is allowed to drive playback. Ten
-      consecutive sessions with zero interruptions is the bar.
+      The next step is deliberately slow, and that is the point. Several real
+      workouts get logged with the loop watching but not acting; the timing
+      constants get tuned against those logs before anything is allowed to
+      touch playback. Ten consecutive sessions with zero interruptions is the
+      bar for turning it on — because a system that cuts off one song in twenty
+      is not a system anybody wants running unattended.
     </p>
   </section>
 
