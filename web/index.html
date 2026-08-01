@@ -1,0 +1,526 @@
+<title>bio-rhythm — music that follows your heart rate</title>
+
+<style>
+  :root {
+    --paper: #f4f6f7;
+    --ink: #14161a;
+    --ink-soft: #4a535c;
+    --rule: #d5dbe0;
+    --panel: #ffffff;
+
+    --z0: #6e7e8a;
+    --z1: #5a8a8e;
+    --z2: #a8894a;
+    --z3: #c4602f;
+    --z4: #b02e1e;
+
+    --accent: #c4602f;
+    --focus: #1f6f8b;
+
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --measure: 34rem;
+    --step: clamp(1rem, 0.6rem + 1.4vw, 1.5rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101315;
+      --ink: #e8ecee;
+      --ink-soft: #97a3ab;
+      --rule: #262d31;
+      --panel: #171b1e;
+
+      --z0: #8797a3;
+      --z1: #6fa8ad;
+      --z2: #c8a659;
+      --z3: #e07840;
+      --z4: #d94a35;
+
+      --accent: #e07840;
+      --focus: #6fb6d4;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #101315;
+    --ink: #e8ecee;
+    --ink-soft: #97a3ab;
+    --rule: #262d31;
+    --panel: #171b1e;
+    --z0: #8797a3;
+    --z1: #6fa8ad;
+    --z2: #c8a659;
+    --z3: #e07840;
+    --z4: #d94a35;
+    --accent: #e07840;
+    --focus: #6fb6d4;
+  }
+
+  :root[data-theme="light"] {
+    --paper: #f4f6f7;
+    --ink: #14161a;
+    --ink-soft: #4a535c;
+    --rule: #d5dbe0;
+    --panel: #ffffff;
+    --z0: #6e7e8a;
+    --z1: #5a8a8e;
+    --z2: #a8894a;
+    --z3: #c4602f;
+    --z4: #b02e1e;
+    --accent: #c4602f;
+    --focus: #1f6f8b;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--measure);
+    margin-inline: auto;
+    padding: clamp(2.5rem, 6vw, 5rem) 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 7vw, 5rem);
+  }
+
+  section { display: flex; flex-direction: column; gap: 1.1rem; }
+
+  h1, h2, h3 { font-family: var(--sans); text-wrap: balance; margin: 0; }
+
+  h1 {
+    font-size: clamp(2.1rem, 1.3rem + 3.4vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.032em;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: clamp(1.35rem, 1.1rem + 0.9vw, 1.7rem);
+    line-height: 1.16;
+    letter-spacing: -0.02em;
+    font-weight: 650;
+  }
+
+  h3 {
+    font-size: 1rem;
+    letter-spacing: -0.006em;
+    font-weight: 650;
+  }
+
+  p { margin: 0; }
+  p + p { margin-top: 0.9rem; }
+
+  .lede {
+    font-size: clamp(1.1rem, 1rem + 0.5vw, 1.3rem);
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  a { color: var(--accent); text-underline-offset: 0.18em; }
+  a:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  code, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: 0.88em; background: var(--panel); padding: 0.1em 0.34em; border: 1px solid var(--rule); }
+
+  /* ---- The instrument ---------------------------------------------- */
+
+  .instrument {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    padding: 1.35rem 1.4rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .readout { display: flex; align-items: baseline; gap: 0.5rem; }
+
+  .bpm {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(3rem, 2rem + 5vw, 4.25rem);
+    line-height: 0.9;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+  }
+
+  .bpm-unit {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.08em;
+  }
+
+  /* Five discrete steps. Never a gauge — the system is discrete and the
+     page should not imply otherwise. */
+  .zones { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+
+  .zone {
+    height: 10px;
+    background: var(--rule);
+    transition: background-color 120ms linear;
+  }
+  .zone[data-on="1"][data-i="0"] { background: var(--z0); }
+  .zone[data-on="1"][data-i="1"] { background: var(--z1); }
+  .zone[data-on="1"][data-i="2"] { background: var(--z2); }
+  .zone[data-on="1"][data-i="3"] { background: var(--z3); }
+  .zone[data-on="1"][data-i="4"] { background: var(--z4); }
+
+  .zone-names {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .zone-names span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .status {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 0.85rem;
+  }
+  .status b { font-weight: 500; color: var(--ink); }
+
+  .caption {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+
+  /* ---- Timing diagram ---------------------------------------------- */
+
+  .track {
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+  }
+  .track > div { padding: 0.7rem 0.85rem; }
+  .track .plays { color: var(--ink-soft); }
+  .track .window {
+    border-left: 2px solid var(--accent);
+    color: var(--ink);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    white-space: nowrap;
+  }
+
+  /* ---- Lists -------------------------------------------------------- */
+
+  ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.85rem; }
+  li { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: start; }
+  li::before {
+    content: "";
+    width: 3px;
+    height: 1.15em;
+    background: var(--accent);
+    margin-top: 0.24em;
+  }
+  li.no b { display: block; font-family: var(--sans); font-weight: 650; }
+  li.no::before { background: var(--z0); }
+
+  .status-table {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    padding: 0.7rem 0.9rem;
+    align-items: center;
+    font-size: 0.95rem;
+  }
+  .row + .row { border-top: 1px solid var(--rule); }
+  .row .what { font-family: var(--sans); }
+  .pill {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.22em 0.55em;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .pill.built { color: var(--z1); }
+  .pill.partial { color: var(--z2); }
+  .pill.none { color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--ink-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .zone { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">watchOS · spotify · single user</p>
+    <h1>Music that follows your heart&nbsp;rate.</h1>
+    <p class="lede">
+      bio-rhythm reads your heart rate on the wrist and chooses what plays next
+      from five playlists you write yourself. It never interrupts a track — it
+      decides at the boundary, and commits in the last twenty seconds.
+    </p>
+  </header>
+
+  <section aria-label="The control law, running">
+    <div class="instrument">
+      <div class="readout">
+        <span class="bpm num" id="bpm">—</span>
+        <span class="bpm-unit">BPM</span>
+      </div>
+
+      <div>
+        <div class="zones" id="zones" role="img" aria-label="Current zone indicator, five discrete steps"></div>
+        <div class="zone-names" aria-hidden="true">
+          <span>Med</span><span>Recov</span><span>Aero</span><span>Tempo</span><span>Hard</span>
+        </div>
+      </div>
+
+      <div class="status">
+        <span id="state">Observing</span>
+        <span>window <b id="mean">—</b></span>
+      </div>
+    </div>
+    <p class="caption">
+      The real control law, running on a simulated heart-rate trace at 20× speed:
+      §6.3 hysteresis, §6.4 dwell, §6.5 step limit. Watch it refuse to move on a
+      spike, and take twenty seconds to confirm a real change. Thresholds shown
+      are for a maximum heart rate of 182 — 62 / 109 / 127 / 149&nbsp;bpm.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">How it decides</p>
+    <h2>Effort is the input. Energy is the output.</h2>
+    <p>
+      Heart rate is already measured continuously and accurately on the wrist,
+      and it is a direct proxy for effort. Effort maps onto a small number of
+      music energy tiers. bio-rhythm closes the loop between the two, so nothing
+      needs adjusting mid-run.
+    </p>
+    <p>
+      The five pools are Spotify playlists you create with your own prompts.
+      What <em>Tempo</em> means is whatever your Tempo prompt returned from your
+      library — the system supplies the timing, you supply the taste.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The guarantee</p>
+    <h2>It cannot cut off a song.</h2>
+    <p>
+      Not <em>will not</em> — <em>cannot</em>. The automatic controller is handed
+      an interface that has exactly two things on it: read the playback state,
+      and add a track to the queue. Pause, skip, previous and seek are not
+      merely unused; they are unnameable from where the decision is made. A skip
+      from control logic is a compile error rather than a bug report.
+    </p>
+
+    <div class="track">
+      <div class="plays">track plays, undisturbed →</div>
+      <div class="window">T−20s decide</div>
+    </div>
+    <p class="caption">
+      The decision waits until the last twenty seconds so it reflects the effort
+      you are actually making, then retries at T−14s and T−9s if the network
+      fails. Past T−6s it gives up and logs a miss, because a commit that lands
+      after the boundary does nothing at all.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">What it does not do</p>
+    <h2>There is no server. There is no account.</h2>
+    <ul>
+      <li class="no"><b>No backend.</b> The watch talks to Spotify directly. Nothing is relayed through anyone else's machine, because there is no machine to relay it through.</li>
+      <li class="no"><b>No account.</b> You connect your own Spotify. There is nothing to sign up for.</li>
+      <li class="no"><b>No telemetry leaving the device.</b> Every decision is logged in detail — on the watch, for you, so the thresholds can be tuned against real sessions. None of it is uploaded.</li>
+      <li class="no"><b>No workout tracking.</b> It holds the device's one workout session, so it saves the workout to Health with your heart rate and ring credit. It is not a training log and does not try to be.</li>
+    </ul>
+  </section>
+
+  <section>
+    <p class="eyebrow">Honest status</p>
+    <h2>Built, and never run.</h2>
+    <p>
+      The control law, the Spotify client and the whole watch interface exist
+      and are tested. Every line of it has been verified by continuous
+      integration and by nothing else — no session has yet taken place on a
+      wrist. This is not available to install, and there is no date.
+    </p>
+
+    <div class="status-table">
+      <div class="row"><span class="what">Auth, playback reading</span><span class="pill built">Built</span></div>
+      <div class="row"><span class="what">Heart rate, zones, workout session</span><span class="pill built">Built</span></div>
+      <div class="row"><span class="what">Control law — hysteresis, dwell, commit timing, pools</span><span class="pill built">Built</span></div>
+      <div class="row"><span class="what">Watch interface</span><span class="pill built">Built</span></div>
+      <div class="row"><span class="what">Choosing tracks during a real session</span><span class="pill partial">Wired next</span></div>
+      <div class="row"><span class="what">Verified on a device</span><span class="pill none">Not yet</span></div>
+    </div>
+
+    <p>
+      The next step is deliberately slow. Several real workouts get logged with
+      the loop observing but not acting, and the timing constants get tuned
+      against those logs before anything is allowed to drive playback. Ten
+      consecutive sessions with zero interruptions is the bar.
+    </p>
+  </section>
+
+  <footer>
+    <p>Single user, sideloaded, not for distribution.</p>
+    <p><a href="https://github.com/lifelike-and-believable/bio-rhythm">github.com/lifelike-and-believable/bio-rhythm</a> — specification, verification log, and every open question.</p>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    // The §6.1 thresholds at maxHR 182, and the §6.3 margin (2.5% of maxHR).
+    const TH = [62, 109, 127, 149];
+    const MARGIN = 4.55;
+    const DWELL = 20;          // §6.4, seconds
+    const NAMES = ["Meditation", "Recovery", "Aerobic", "Tempo", "Hard"];
+
+    const zonesEl = document.getElementById("zones");
+    const bpmEl = document.getElementById("bpm");
+    const stateEl = document.getElementById("state");
+    const meanEl = document.getElementById("mean");
+
+    const cells = NAMES.map(function (name, i) {
+      const el = document.createElement("div");
+      el.className = "zone";
+      el.dataset.i = String(i);
+      el.dataset.on = "0";
+      zonesEl.appendChild(el);
+      return el;
+    });
+
+    // A plausible session: warm up, settle aerobic, a spike that should be
+    // ignored, a real climb, then recovery.
+    const LEG = [
+      [70, 40], [104, 70], [118, 80], [118, 60],
+      [176, 12],                                  // spike — dwell must reject it
+      [118, 50], [134, 90], [152, 80], [158, 60],
+      [120, 70], [96, 60], [72, 50]
+    ];
+
+    let leg = 0, legT = 0, hr = 70, t = 0;
+    let zone = null, cand = null, candSince = 0;
+    const win = [];
+
+    function rawZone(bpm) {
+      let z = 0;
+      for (let i = 0; i < TH.length; i++) if (bpm >= TH[i]) z = i + 1;
+      return z;
+    }
+
+    function hysteresis(bpm, n) {
+      if (n < TH.length && bpm > TH[n] + MARGIN) return n + 1;
+      if (n > 0 && bpm < TH[n - 1] - MARGIN) return n - 1;
+      return n;
+    }
+
+    function step() {
+      const target = LEG[leg][0];
+      hr += (target - hr) * 0.06 + (Math.random() - 0.5) * 2.2;
+      legT += 1;
+      if (legT >= LEG[leg][1]) { legT = 0; leg = (leg + 1) % LEG.length; }
+      t += 1;
+
+      win.push(hr);
+      if (win.length > 45) win.shift();          // §6.2, 45-second window
+      const mean = win.reduce(function (a, b) { return a + b; }, 0) / win.length;
+
+      if (zone === null) {
+        zone = rawZone(mean);                     // seeded from the raw mapping
+      } else {
+        const proposed = hysteresis(mean, zone);
+        if (proposed === zone) {
+          cand = null;
+        } else if (proposed !== cand) {
+          cand = proposed;
+          candSince = t;
+        } else if (t - candSince >= DWELL) {
+          // §6.5: one step, however large the excursion.
+          zone = zone + Math.sign(cand - zone);
+          cand = null;
+        }
+      }
+
+      bpmEl.textContent = String(Math.round(hr));
+      meanEl.textContent = String(Math.round(mean));
+      cells.forEach(function (el, i) { el.dataset.on = i === zone ? "1" : "0"; });
+      zonesEl.setAttribute("aria-label", "Current zone: " + NAMES[zone]);
+
+      if (cand !== null) {
+        const held = t - candSince;
+        stateEl.innerHTML = "Settling → <b>" + NAMES[cand] + "</b> · " + held + "s of " + DWELL;
+      } else {
+        stateEl.innerHTML = "Observing · <b>" + NAMES[zone] + "</b>";
+      }
+    }
+
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (still.matches) {
+      for (let i = 0; i < 400; i++) step();       // one settled frame, no motion
+    } else {
+      for (let i = 0; i < 45; i++) step();        // fill the window before showing
+      setInterval(step, 50);                      // 20× real time
+    }
+  })();
+</script>
