@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bio-rhythm — effort in, energy out</title>
+<meta name="description" content="Draft marketing treatment for bio-rhythm. Not the published site.">
+<meta name="color-scheme" content="dark">
+
+<style>
+  /* Single-theme by choice. The page is an instrument at rest: the ground is
+     Z0's slate, darkened, and the zone scale is the only saturated thing on it.
+     A light variant would put the heat on white and lose that entirely. */
+  :root {
+    --ground: #0e1419;
+    --ground-2: #131b21;
+    --edge: #1f2a32;
+    --ink: #eef3f6;
+    --ink-2: #8fa1ad;
+    --ink-3: #5d6f7c;
+
+    --z0: #7d8f9c;
+    --z1: #5fa4a9;
+    --z2: #cfa64f;
+    --z3: #e2793e;
+    --z4: #e04531;
+
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .page {
+    max-width: 68rem;
+    margin-inline: auto;
+    padding: 0 1.5rem;
+  }
+
+  /* ---- Hero --------------------------------------------------------- */
+
+  .hero {
+    min-height: 92vh;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3.5rem;
+    align-content: center;
+    padding: 5rem 0 4rem;
+  }
+  @media (min-width: 62rem) {
+    .hero { grid-template-columns: 1.15fr 0.85fr; align-items: center; gap: 4rem; }
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 1.75rem;
+  }
+
+  h1 {
+    font-size: clamp(3rem, 1.4rem + 7vw, 6.5rem);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    font-weight: 800;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h1 .out {
+    display: block;
+    color: var(--z3);
+  }
+
+  .sub {
+    margin: 1.9rem 0 0;
+    font-size: clamp(1.05rem, 0.95rem + 0.55vw, 1.3rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 30rem;
+  }
+
+  /* ---- The watch ---------------------------------------------------- */
+
+  .device { display: flex; justify-content: center; }
+
+  .watch {
+    width: min(15rem, 68vw);
+    aspect-ratio: 41 / 50;
+    background: #05080a;
+    border: 1px solid var(--edge);
+    border-radius: 2.6rem;
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 2rem 5rem -1rem var(--glow, #0000),
+                0 1rem 3rem rgba(0, 0, 0, 0.6);
+    transition: box-shadow 700ms ease;
+  }
+  @media (prefers-reduced-motion: reduce) { .watch { transition: none; } }
+
+  .w-bpm { display: flex; align-items: baseline; gap: 0.35rem; }
+  .w-bpm .n {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 2.85rem;
+    line-height: 0.88;
+    font-weight: 600;
+    letter-spacing: -0.045em;
+  }
+  .w-bpm .u { font-family: var(--mono); font-size: 0.62rem; color: var(--ink-3); letter-spacing: 0.1em; }
+
+  .w-zones { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+  .w-zones i { height: 6px; background: #1b242b; border-radius: 1px; display: block; }
+  .w-zones i[data-on="1"][data-i="0"] { background: var(--z0); }
+  .w-zones i[data-on="1"][data-i="1"] { background: var(--z1); }
+  .w-zones i[data-on="1"][data-i="2"] { background: var(--z2); }
+  .w-zones i[data-on="1"][data-i="3"] { background: var(--z3); }
+  .w-zones i[data-on="1"][data-i="4"] { background: var(--z4); }
+
+  .w-zone-name {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin-top: 0.4rem;
+  }
+
+  .w-line {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--ink-3);
+    line-height: 1.4;
+    border-top: 1px solid #161e24;
+    padding-top: 0.7rem;
+    margin-top: auto;
+  }
+  .w-track { font-family: var(--mono); font-size: 0.58rem; color: var(--ink-2); }
+
+  .device-note {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--ink-3);
+    text-align: center;
+    margin-top: 1.1rem;
+    line-height: 1.6;
+    max-width: 20rem;
+    margin-inline: auto;
+  }
+
+  /* ---- Statements --------------------------------------------------- */
+
+  .band { padding: clamp(5rem, 11vw, 9rem) 0; border-top: 1px solid var(--edge); }
+
+  .statement {
+    font-size: clamp(2rem, 1.1rem + 3.9vw, 3.9rem);
+    line-height: 1.02;
+    letter-spacing: -0.038em;
+    font-weight: 750;
+    margin: 0;
+    max-width: 20ch;
+    text-wrap: balance;
+  }
+  .statement em { font-style: normal; color: var(--z3); }
+
+  .body {
+    margin: 1.75rem 0 0;
+    font-size: 1.0625rem;
+    line-height: 1.62;
+    color: var(--ink-2);
+    max-width: 34rem;
+  }
+  .body + .body { margin-top: 1rem; }
+
+  .cols {
+    margin-top: 3.25rem;
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 48rem) { .cols { grid-template-columns: repeat(3, 1fr); gap: 2.5rem; } }
+
+  .col h3 {
+    margin: 0 0 0.6rem;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: -0.012em;
+  }
+  .col p { margin: 0; color: var(--ink-2); font-size: 0.96rem; line-height: 1.55; }
+  .col .mark {
+    display: block;
+    width: 1.75rem;
+    height: 2px;
+    margin-bottom: 1rem;
+    background: var(--z3);
+  }
+  .col:nth-child(2) .mark { background: var(--z1); }
+  .col:nth-child(3) .mark { background: var(--z2); }
+
+  /* ---- Status ------------------------------------------------------- */
+
+  .status-band {
+    border: 1px solid var(--edge);
+    background: var(--ground-2);
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    display: grid;
+    gap: 1.5rem;
+  }
+  @media (min-width: 52rem) { .status-band { grid-template-columns: 1fr 1fr; gap: 3rem; } }
+
+  .status-band h2 {
+    margin: 0 0 0.9rem;
+    font-size: 1.5rem;
+    letter-spacing: -0.022em;
+    font-weight: 750;
+  }
+  .status-band p { margin: 0; color: var(--ink-2); font-size: 0.98rem; }
+  .status-band p + p { margin-top: 0.8rem; }
+
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.72rem 0;
+    font-size: 0.92rem;
+    border-bottom: 1px solid var(--edge);
+  }
+  .step:last-child { border-bottom: 0; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .tag.done { color: var(--z1); }
+  .tag.now { color: var(--z2); }
+
+  footer {
+    border-top: 1px solid var(--edge);
+    padding: 2.5rem 0 4rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  footer a { color: var(--ink-2); text-underline-offset: 0.2em; }
+  footer a:focus-visible { outline: 2px solid var(--z1); outline-offset: 3px; }
+</style>
+</head>
+
+<body>
+<div class="page">
+
+  <section class="hero">
+    <div>
+      <p class="kicker">watchOS · spotify · no phone required</p>
+      <h1>Effort in.<span class="out">Energy out.</span></h1>
+      <p class="sub">
+        bio-rhythm reads your heart rate on the wrist and chooses what plays
+        next from five playlists you write yourself. No skipping. No reaching.
+        No deciding at threshold what you should have queued an hour ago.
+      </p>
+    </div>
+
+    <div>
+      <div class="device">
+        <div class="watch" id="watch">
+          <div class="w-bpm">
+            <span class="n" id="bpm">—</span><span class="u">BPM</span>
+          </div>
+          <div>
+            <div class="w-zones" id="zones" role="img" aria-label="Zone indicator"></div>
+            <div class="w-zone-name" id="zname">—</div>
+          </div>
+          <div class="w-line">
+            <div id="state">Observing</div>
+            <div class="w-track" id="track">Ghosts — Japanese Television</div>
+          </div>
+        </div>
+      </div>
+      <p class="device-note">
+        The watch screen, running the real control law on a simulated heart-rate
+        trace at 20× speed. Watch it hold steady through a spike.
+      </p>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2 class="statement">It will never cut off a song. <em>It cannot.</em></h2>
+    <p class="body">
+      The part that chooses music is handed an interface with two things on it:
+      read what is playing, and add something to the queue. Pause, skip and seek
+      are not withheld by policy — they are absent. A skip from the automatic
+      loop is a compile error, not a bug report.
+    </p>
+    <p class="body">
+      So it waits. The decision lands in the last twenty seconds of whatever is
+      playing, when it knows what you are actually doing, and the next track is
+      already queued before the current one ends.
+    </p>
+  </section>
+
+  <section class="band">
+    <h2 class="statement">Five playlists. <em>Yours.</em></h2>
+    <p class="body">
+      You write the prompts. What <em>Tempo</em> means is whatever your Tempo
+      prompt pulled out of your own library — not a genre, not someone else's
+      idea of intensity. The system supplies the timing. You supply the taste.
+    </p>
+
+    <div class="cols">
+      <div class="col">
+        <span class="mark"></span>
+        <h3>It waits before it moves</h3>
+        <p>A twenty-second climb does not change the music. Only a sustained one does — and never more than one zone at a time.</p>
+      </div>
+      <div class="col">
+        <span class="mark"></span>
+        <h3>Take it back anytime</h3>
+        <p>Turn the crown to pin a zone. It stays pinned until you say otherwise — no timer quietly handing control back.</p>
+      </div>
+      <div class="col">
+        <span class="mark"></span>
+        <h3>Leave the phone</h3>
+        <p>Heart rate, decisions and playback all run on the watch. The phone is needed once, to connect Spotify, and never again.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2 class="statement">No account. No server. <em>No copy of you.</em></h2>
+    <p class="body">
+      There is no backend, because there is nothing for one to do. The watch
+      talks to Spotify directly with your own connection. Every decision it
+      makes is logged in detail — on the watch, for you, so the thresholds can
+      be tuned against your real sessions. None of it goes anywhere.
+    </p>
+  </section>
+
+  <!--
+    The slot that becomes "Get it" once §16.5's release gate is met. Everything
+    above is written to survive that swap unedited.
+  -->
+  <section class="band">
+    <div class="status-band">
+      <div>
+        <h2>Where it is</h2>
+        <p>
+          The control law, the Spotify client and the whole watch interface are
+          built and tested. What is left is the part that cannot be hurried.
+        </p>
+        <p>
+          Nothing has run on a wrist yet. There is nothing to install and no
+          date — when there is, it will be here.
+        </p>
+      </div>
+      <div class="steps">
+        <div class="step"><span>Heart rate, zones, workout session</span><span class="tag done">Built</span></div>
+        <div class="step"><span>Control law and playlist selection</span><span class="tag done">Built</span></div>
+        <div class="step"><span>Watch interface</span><span class="tag done">Built</span></div>
+        <div class="step"><span>Running through real workouts</span><span class="tag now">Next</span></div>
+        <div class="step"><span>Trusted to choose unattended</span><span class="tag">After ten clean sessions</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Single user, sideloaded, not for distribution.</p>
+    <p><a href="https://github.com/lifelike-and-believable/bio-rhythm">github.com/lifelike-and-believable/bio-rhythm</a> — the specification, the verification log, and every open question.</p>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var TH = [62, 109, 127, 149], MARGIN = 4.55, DWELL = 20;
+    var NAMES = ["Meditation", "Recovery", "Aerobic", "Tempo", "Hard"];
+    var GLOW = ["#7d8f9c22", "#5fa4a92e", "#cfa64f2e", "#e2793e33", "#e0453138"];
+    var TRACKS = [
+      "Ghosts — Japanese Television", "Slow Burn — Kelly Lee Owens",
+      "Nightcall — Kavinsky", "Bloodsport — Sleaford Mods",
+      "Windowlicker — Aphex Twin"
+    ];
+
+    var zonesEl = document.getElementById("zones");
+    var bpmEl = document.getElementById("bpm");
+    var nameEl = document.getElementById("zname");
+    var stateEl = document.getElementById("state");
+    var trackEl = document.getElementById("track");
+    var watchEl = document.getElementById("watch");
+
+    var cells = NAMES.map(function (_, i) {
+      var el = document.createElement("i");
+      el.dataset.i = String(i);
+      el.dataset.on = "0";
+      zonesEl.appendChild(el);
+      return el;
+    });
+
+    var LEG = [
+      [70, 40], [104, 70], [118, 80], [118, 60],
+      [176, 12],
+      [118, 50], [134, 90], [152, 80], [158, 60],
+      [120, 70], [96, 60], [72, 50]
+    ];
+
+    var leg = 0, legT = 0, hr = 70, t = 0;
+    var zone = null, cand = null, candSince = 0, win = [];
+
+    function raw(b) { var z = 0; for (var i = 0; i < TH.length; i++) if (b >= TH[i]) z = i + 1; return z; }
+    function hyst(b, n) {
+      if (n < TH.length && b > TH[n] + MARGIN) return n + 1;
+      if (n > 0 && b < TH[n - 1] - MARGIN) return n - 1;
+      return n;
+    }
+
+    function step() {
+      hr += (LEG[leg][0] - hr) * 0.06 + (Math.random() - 0.5) * 2.2;
+      if (++legT >= LEG[leg][1]) { legT = 0; leg = (leg + 1) % LEG.length; }
+      t += 1;
+
+      win.push(hr);
+      if (win.length > 45) win.shift();
+      var mean = win.reduce(function (a, b) { return a + b; }, 0) / win.length;
+
+      var moved = false;
+      if (zone === null) {
+        zone = raw(mean);
+      } else {
+        var p = hyst(mean, zone);
+        if (p === zone) { cand = null; }
+        else if (p !== cand) { cand = p; candSince = t; }
+        else if (t - candSince >= DWELL) {
+          zone += (cand > zone ? 1 : -1);
+          cand = null;
+          moved = true;
+        }
+      }
+
+      bpmEl.textContent = String(Math.round(hr));
+      cells.forEach(function (el, i) { el.dataset.on = i === zone ? "1" : "0"; });
+      nameEl.textContent = NAMES[zone];
+      zonesEl.setAttribute("aria-label", "Zone: " + NAMES[zone]);
+      watchEl.style.setProperty("--glow", GLOW[zone]);
+
+      if (moved) trackEl.textContent = TRACKS[zone];
+
+      stateEl.textContent = cand !== null
+        ? "Settling → " + NAMES[cand] + " · " + (t - candSince) + "s"
+        : "Observing";
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      for (var i = 0; i < 420; i++) step();
+    } else {
+      for (var j = 0; j < 45; j++) step();
+      setInterval(step, 50);
+    }
+  })();
+</script>
+</body>
+</html>
